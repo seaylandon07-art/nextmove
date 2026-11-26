@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" data-board="blue">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NextMove Chess</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE a serious club player's instrument: quiet chrome, the board does the talking
+   IDEA an analysis terminal at a tournament hall: scoresheet, engine readout, clock
+   PICTURE the live board, as large as the screen allows, with clocks and material beside it
+   COLOUR charcoal ground, hairline panels, one signal-orange accent; board themes the player picks
+   TYPE Geist for interface, Geist Mono for moves, clocks and evaluations
+   LAYOUT laptop: slim sidebar, board, scoresheet panel; phone: board first, panel, bottom tab bar */
+:root{color-scheme:dark;
+--bg:light-dark(#f3f3f1,#101113);--side:light-dark(#e9e9e6,#0b0c0d);--panel:light-dark(#ffffff,#17181b);--panel2:light-dark(#f0f0ed,#1f2124);
+--line:light-dark(#dadad5,#2a2c30);--ink:light-dark(#141518,#ececea);--mute:light-dark(#62656b,#8f9298);--acc:#ff5c28;--acc2:light-dark(#d9430f,#ff8357);
+--ok:#5aa54a;--no:#e0402e;--sqL:#dee3e6;--sqD:#8ca2ad;--hl:rgba(255,196,60,.5);--r:6px;--mono:'Geist Mono',ui-monospace,Menlo,monospace}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+@media (prefers-color-scheme:light){:root:not([data-theme]){color-scheme:light}}
+[data-board=green]{--sqL:#ebecd0;--sqD:#739552}
+[data-board=walnut]{--sqL:#f0d9b5;--sqD:#b58863}
+[data-board=graphite]{--sqL:#d4d4cf;--sqD:#7b7e85}
+[data-board=night]{--sqL:#9aa4b1;--sqD:#4f5b6b;--hl:rgba(255,170,60,.45)}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Geist,system-ui,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.app{display:grid;grid-template-columns:208px minmax(0,1fr);min-height:100%}
+/* sidebar */
+.side{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 10px;position:sticky;top:0;height:100svh}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;padding:2px 10px 18px;letter-spacing:-.01em}
+.brand b{width:26px;height:26px;border-radius:5px;background:var(--acc);display:grid;place-items:center}
+.brand b svg{width:18px;height:18px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:var(--r);color:var(--mute);text-decoration:none;font-weight:500}
+.nav a:hover{background:var(--panel2);color:var(--ink)}
+.nav a.on{background:var(--panel);color:var(--ink);box-shadow:inset 2px 0 0 var(--acc)}
+.sidefoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding:0 6px}
+.me{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.me .av{grid-row:span 2}
+.me b{font-size:13px}.me span{font-size:12px;color:var(--mute);font-family:var(--mono)}
+.eng{font-size:11px;color:var(--mute);display:flex;align-items:center;gap:6px;padding:0 4px}
+.eng::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--mute)}.eng.ok::before{background:var(--ok)}.eng.bad{color:var(--no)}
+.linkbtn{display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--mute);padding:6px 4px;cursor:pointer;font-size:13px}
+.linkbtn:hover{color:var(--ink)}
+.tabbar{display:none}
+.topbar{display:none}
+main{padding:20px clamp(14px,2.4vw,32px) 40px;max-width:1280px;width:100%}
+.view{display:grid;grid-template-columns:minmax(0,1fr) minmax(310px,370px);gap:clamp(14px,2vw,24px);align-items:start}
+.view.wide{grid-template-columns:minmax(0,1fr)}
+/* board area */
+.stage{display:flex;flex-direction:column;gap:6px;width:100%;max-width:min(720px,calc(100svh - 96px));margin-inline:auto}
+.bwrap{display:grid;grid-template-columns:14px minmax(0,1fr);gap:6px}
+.bwrap.noeval{grid-template-columns:minmax(0,1fr)}.bwrap.noeval .evalbar{display:none}
+.evalbar{position:relative;border-radius:3px;overflow:hidden;background:#2b2d31}
+.evalbar.off{visibility:hidden}
+.evalbar i{position:absolute;left:0;right:0;bottom:0;background:#eeeeea;transition:height .35s ease}
+.evalbar.flip i{bottom:auto;top:0}
+.evalbar span{position:absolute;left:0;right:0;font:600 8.5px/1 var(--mono);text-align:center;padding:3px 0;writing-mode:vertical-rl;transform:rotate(180deg)}
+.evalbar span.lo{bottom:0;color:#1d1e21}.evalbar span.hi{top:0;color:#eeeeea}
+.board{position:relative;aspect-ratio:1;width:100%;user-select:none;-webkit-user-select:none;touch-action:none;border-radius:3px;overflow:hidden;box-shadow:0 1px 0 var(--line),0 14px 34px -18px #000c}
+.sqs{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);position:absolute;inset:0}
+.sq{position:relative}.sq.l{background:var(--sqL)}.sq.d{background:var(--sqD)}
+.sq.last::before{content:'';position:absolute;inset:0;background:var(--hl)}
+.sq.sel::before{content:'';position:absolute;inset:0;background:rgba(255,92,40,.42)}
+.sq.hint::before{content:'';position:absolute;inset:0;box-shadow:inset 0 0 0 4px var(--acc)}
+.sq.umark::before{content:'';position:absolute;inset:3%;border-radius:50%;box-shadow:inset 0 0 0 3px #f2a33acc}
+.sq.good::before{content:'';position:absolute;inset:0;background:rgba(90,165,74,.55)}
+.sq.bad::before{content:'';position:absolute;inset:0;background:rgba(224,64,46,.5)}
+.sq.chk{background-image:radial-gradient(circle,#ff3b28 0,#ff3b28aa 32%,transparent 72%)}
+.sq.dot::after{content:'';position:absolute;inset:37%;border-radius:50%;background:#10181c3a}
+.sq.cap::after{content:'';position:absolute;inset:3%;border-radius:50%;box-shadow:inset 0 0 0 5px #10181c3a}
+.pc{position:absolute;inset:0;background-size:100%;background-repeat:no-repeat;z-index:1;pointer-events:none;will-change:transform}
+.dragpc{position:fixed;left:0;top:0;z-index:100;background-size:100%;pointer-events:none;filter:drop-shadow(0 8px 8px #0007)}
+.sq i{position:absolute;font:600 10px/1 var(--mono);font-style:normal;z-index:2;opacity:.85}
+.nocoords .sq i{display:none}
+.sq .rk{left:3px;top:3px}.sq .fl{right:3px;bottom:2px}
+.sq.l i{color:var(--sqD)}.sq.d i{color:var(--sqL)}
+.badge{position:absolute;right:-3%;top:-3%;width:36%;height:36%;border-radius:50%;color:#fff;font:700 clamp(9px,1.5vw,12px)/1 var(--mono);font-style:normal;display:grid;place-items:center;z-index:3;box-shadow:0 1px 4px #0007}
+.arw{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
+.promo{position:absolute;top:0;width:12.5%;z-index:6;display:flex;flex-direction:column;background:var(--panel);border-radius:0 0 4px 4px;box-shadow:0 8px 24px #000a}
+.promo button{aspect-ratio:1;border:0;background-color:transparent;background-size:88%;background-position:center;background-repeat:no-repeat;cursor:pointer}
+.promo button:hover{background-color:#ff5c2833}
+.pl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:40px;padding-left:20px}
+.bwrap.noeval~.pl,.stage.noeval .pl{padding-left:0}
+.pl .who{display:flex;flex-direction:column;line-height:1.2}
+.pl .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .mat{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:0;min-height:16px}
+.pl .mat img{width:15px;height:15px;margin-right:-4px}.pl .mat em{font-style:normal;margin-left:8px;font-family:var(--mono)}
+.clk{font:600 19px/1 var(--mono);font-variant-numeric:tabular-nums;padding:7px 10px;border-radius:4px;background:var(--panel);border:1px solid var(--line);min-width:76px;text-align:right}
+.clk:empty{display:none}.clk.run{background:var(--ink);color:var(--bg);border-color:var(--ink)}.clk.low.run{background:var(--no);border-color:var(--no);color:#fff}
+.av{width:32px;height:32px;border-radius:5px;display:grid;place-items:center;font:700 13px/1 Geist,sans-serif;color:#fff;flex:none}
+.av svg{width:20px;height:20px;fill:#fff;stroke:none}
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column}
+.panel section,.panel .sec{padding:14px 16px;border-top:1px solid var(--line)}
+.panel section:first-child,.panel .sec:first-child{border-top:0}
+.panel .ph+section,.panel .ph+.prog+section{border-top:0}
+.ph{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.ph h2{font-size:15px;font-weight:600;margin:0}
+.ph .sp{margin-left:auto}
+h1{font-size:26px;line-height:1.1;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+h3{font-size:11.5px;font-weight:600;color:var(--mute);margin:0 0 8px;letter-spacing:.01em}
+.mute{color:var(--mute);margin:0}
+.small{font-size:12.5px}
+p{margin:0}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:2px;gap:2px}
+.seg button{flex:1;border:0;background:none;padding:7px 8px;border-radius:4px;cursor:pointer;color:var(--mute);font-weight:500;white-space:nowrap;min-height:34px}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px #0003}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 14px;border-radius:var(--r);border:1px solid transparent;background:var(--acc);color:#fff;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{filter:brightness(1.07)}.btn:disabled{opacity:.45;cursor:default}
+.btn.sec{background:var(--panel2);color:var(--ink);border-color:var(--line)}
+.btn.sec:hover{border-color:var(--mute)}
+.btn.quiet{background:none;color:var(--mute);border-color:transparent;padding:0 8px}
+.btn.quiet:hover{color:var(--ink);background:var(--panel2)}
+.btn.wide{width:100%}
+.btn.on{border-color:var(--acc);color:var(--acc2)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tools{display:flex;gap:2px;padding:6px 8px;border-top:1px solid var(--line)}
+.tools .btn{flex:1;min-height:40px;padding:0 6px;background:none;color:var(--mute);border:0;flex-direction:column;gap:2px;font-size:11px;font-weight:500}
+.tools .btn:hover{background:var(--panel2);color:var(--ink)}
+.tools .btn.on{color:var(--acc2)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+input[type=text],select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;min-height:38px;width:100%;font-size:16px}
+@media(min-width:700px){input[type=text],select,textarea{font-size:14px}}
+textarea{min-height:130px;resize:vertical;font:12.5px/1.45 var(--mono)}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--mute)}
+label.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}
+/* bot list */
+.bots{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;max-height:330px;overflow-y:auto}
+.bot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:0;border-top:1px solid var(--line);background:var(--panel);text-align:left;cursor:pointer}
+.bot:first-child{border-top:0}
+.bot:hover{background:var(--panel2)}
+.bot.on{background:color-mix(in srgb,var(--acc) 12%,var(--panel));box-shadow:inset 3px 0 0 var(--acc)}
+.bot b{display:block;font-weight:600}.bot small{display:block;color:var(--mute);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bot em{font:500 12px var(--mono);font-style:normal;color:var(--mute)}
+/* scoresheet */
+.sheet{list-style:none;margin:0;padding:0;overflow:auto;font:13px/1 var(--mono);max-height:300px}
+.sheet li{display:grid;grid-template-columns:40px 1fr 1fr;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.sheet li>span{color:var(--mute);padding:7px 0 7px 12px;background:var(--panel2)}
+.fg{width:17px;height:17px;margin:-3px 0 -4px -2px}
+.shows{margin-top:2px}.shows .btn{padding:0 8px;color:var(--acc2)}
+#notSeg{flex-direction:column}#notSeg button{white-space:normal;text-align:left}
+.sheet b{font-weight:500;padding:6px 8px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sheet .mv{cursor:pointer}.sheet .mv:hover{background:var(--panel2)}
+.sheet .mv.cur{background:color-mix(in srgb,var(--acc) 22%,transparent);color:var(--ink)}
+.sheet:empty::before{content:'No moves yet';display:block;padding:14px 12px;color:var(--mute);font-family:Geist,sans-serif}
+.ic{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 3px;border-radius:9px;color:#fff;font:700 9.5px/1 var(--mono);font-style:normal;flex:none}
+.status{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.status .dot.live{background:var(--acc);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.result{display:flex;flex-direction:column;gap:10px;background:var(--panel2);border-radius:var(--r);padding:12px;border:1px solid var(--line)}
+.result b{font-size:17px}
+/* review */
+.sumgrid{display:grid;grid-template-columns:minmax(0,1fr) 78px 78px;font-size:13px}
+.sumgrid>*{padding:5px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);display:flex;align-items:center;gap:7px}
+.sumgrid .n{justify-content:flex-end;font-family:var(--mono);font-weight:500}
+.sumgrid .hd{color:var(--mute);font-size:11.5px;font-weight:600}
+.sumgrid .big{font:600 22px/1.1 var(--mono);justify-content:flex-end}
+.sumgrid .hd{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;text-align:right;padding-left:8px}
+#tFbSec:has(#tFb:empty){display:none}
+.prog{height:3px;background:var(--panel2);position:relative;overflow:hidden}
+.prog i{position:absolute;inset:0 auto 0 0;background:var(--acc);transition:width .2s}
+.fig{position:relative;height:64px;cursor:pointer;border-radius:3px;overflow:hidden}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.gb{fill:#2c2e32}.ga{fill:#e9e9e5}.gm{stroke:#8f9298;stroke-width:1;stroke-dasharray:2 4;opacity:.6}.gc{stroke:var(--acc);stroke-width:2}
+.gl{fill:none;stroke:var(--acc);stroke-width:2;stroke-linejoin:round}.gd{fill:var(--acc)}.gt{fill:var(--mute);font:11px var(--mono)}.gg{stroke:var(--line);stroke-width:1}
+.navr{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.navr button{min-height:38px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel);cursor:pointer;display:grid;place-items:center;color:var(--ink)}
+.navr button:hover{border-color:var(--mute)}
+.detail{display:flex;flex-direction:column;gap:7px;min-height:92px}
+.detail p{font-size:13.5px}
+.dh{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600}
+.dh .ic{min-width:22px;height:22px;font-size:11px;border-radius:11px}
+.dh .ev{margin-left:auto;font:500 13px var(--mono);color:var(--mute)}
+.line{font:12.5px/1.5 var(--mono);color:var(--mute)}
+.moments{display:flex;flex-direction:column}
+.moment{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border:0;border-top:1px solid var(--line);background:none;text-align:left;cursor:pointer;font-size:13px}
+.moment:first-child{border-top:0}
+.moment:hover{color:var(--acc2)}
+.moment span{color:var(--mute);font-family:var(--mono);font-size:12px}
+.fb{border-radius:var(--r);padding:10px 12px;background:var(--panel2);border:1px solid var(--line);display:flex;flex-direction:column;gap:5px}
+.fb p{font-size:13.5px}.fb b{font-size:14.5px}
+.fb.ok{border-color:color-mix(in srgb,var(--ok) 60%,var(--line));background:color-mix(in srgb,var(--ok) 11%,var(--panel))}
+.fb.no{border-color:color-mix(in srgb,var(--no) 60%,var(--line));background:color-mix(in srgb,var(--no) 10%,var(--panel))}
+.coachbox{padding:9px 12px;border-left:2px solid var(--acc);background:var(--panel2);font-size:13.5px;white-space:pre-wrap}
+.exbar{display:flex;gap:8px;align-items:center;font:12.5px var(--mono);background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:6px 6px 6px 10px}
+.exbar span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* analysis */
+.elines{display:flex;flex-direction:column;font:12.5px/1.4 var(--mono)}
+.eline{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;padding:7px 0;border-top:1px solid var(--line);cursor:pointer}
+.eline:first-child{border-top:0}
+.eline b{font-weight:600;text-align:right}.eline span{color:var(--mute);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.eline:hover span{color:var(--ink)}
+/* train hub */
+.thead{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:4px 0 18px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.thead>div{flex:1 1 220px}
+.ring{width:58px;height:58px;flex:none}.ring .rb{fill:none;stroke:var(--panel2);stroke-width:6}.ring .rf{fill:none;stroke:var(--acc);stroke-width:6;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset .5s}
+.ring text{font:600 17px var(--mono);fill:var(--ink)}
+.groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 22px}
+.group h3{padding-left:2px}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:34px minmax(0,1fr) auto 14px;gap:12px;align-items:center;padding:12px 14px;border:0;border-top:1px solid var(--line);background:none;text-align:left;cursor:pointer;color:var(--ink)}
+.item:first-child{border-top:0}
+.item:hover{background:var(--panel2)}
+.item .ti{width:34px;height:34px;border-radius:6px;display:grid;place-items:center;background:var(--panel2);color:var(--acc2)}
+.item b{display:block;font-weight:600;font-size:14px}.item small{display:block;color:var(--mute);font-size:12.5px;line-height:1.35}
+.item em{font:500 12px var(--mono);font-style:normal;color:var(--mute);white-space:nowrap}
+.item>svg:last-child{color:var(--mute);width:14px;height:14px}
+/* training session */
+.prompt b{font-size:17px;font-weight:600;display:block;line-height:1.25}
+.prompt p{margin-top:5px;color:var(--mute);font-size:13.5px}
+.prompt p b{display:inline;font-size:inherit;color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:4px;padding:5px 9px;cursor:pointer;font-size:12.5px;color:var(--mute)}
+.chip.on{border-color:var(--acc);color:var(--ink)}
+.picker{max-height:62vh;overflow:auto}
+.picker h4{font-size:12px;color:var(--mute);margin:14px 0 6px;font-weight:600}
+.picker h4:first-child{margin-top:0}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.prow b{font-weight:600}.prow small{display:block;color:var(--mute);font:11.5px/1.4 var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow p{grid-column:1/-1;font-size:12.5px;color:var(--mute)}
+.prow .done{color:var(--ok);font-size:12px;margin-left:6px}
+.tag{font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:3px;background:color-mix(in srgb,var(--no) 22%,transparent);color:light-dark(#b52a1c,#ff8a7c);margin-left:6px;vertical-align:1px}
+.idea{border-left:2px solid var(--acc);padding:7px 11px;background:var(--panel2);font-size:13px}
+.score{display:flex;gap:18px;align-items:baseline}
+.score b{font:600 34px/1 var(--mono)}.score span{color:var(--mute)}
+.strikes{display:flex;gap:4px}.strikes i{width:10px;height:10px;border-radius:50%;background:var(--panel2);border:1px solid var(--line)}.strikes i.x{background:var(--no);border-color:var(--no)}
+.vision{font:700 clamp(40px,8vw,64px)/1 var(--mono);text-align:center;padding:6px 0;letter-spacing:.02em}
+/* progress */
+#progress{grid-template-columns:repeat(2,minmax(0,1fr))}
+.stats{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.stat{padding:14px 16px;border-left:1px solid var(--line)}.stat:first-child{border-left:0}
+.stat small{color:var(--mute);display:block;font-size:12px}.stat b{display:block;font:600 28px/1.15 var(--mono)}.stat span{font-size:12px;color:var(--mute)}
+.card .fig{height:170px;cursor:default}
+.cal{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,12px);grid-auto-columns:12px;justify-content:start;gap:3px;overflow-x:auto;padding-bottom:4px}
+.cal i{width:12px;height:12px;border-radius:2px;background:var(--panel2)}
+.cal i.l1{background:color-mix(in srgb,var(--acc) 35%,var(--panel2))}.cal i.l2{background:color-mix(in srgb,var(--acc) 65%,var(--panel2))}.cal i.l3{background:var(--acc)}
+.hb{display:grid;grid-template-columns:96px minmax(0,1fr) 50px;gap:10px;align-items:center;margin-bottom:7px;font-size:13px}
+.hb div{height:8px;border-radius:2px;background:var(--panel2);overflow:hidden}.hb i{display:block;height:100%;background:var(--acc)}
+.hb b{text-align:right;font:500 12.5px var(--mono);white-space:nowrap}
+/* settings sheet */
+.overlay{position:fixed;inset:0;background:#0009;z-index:60;display:grid;place-items:center;padding:16px}
+.sheetdlg section{padding:12px 16px;border-top:1px solid var(--line)}
+.sheetdlg{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(560px,100%);max-height:88svh;overflow:auto}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:56px;height:56px;border-radius:5px;border:2px solid transparent;cursor:pointer;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;overflow:hidden;padding:0}
+.sw.on{border-color:var(--acc)}
+.sw i:nth-child(1),.sw i:nth-child(4){background:var(--a)}.sw i:nth-child(2),.sw i:nth-child(3){background:var(--b)}
+.psets{display:flex;gap:8px;flex-wrap:wrap}
+.pset{border:2px solid var(--line);border-radius:5px;background:var(--panel2);padding:4px 8px;cursor:pointer;display:flex;gap:0}
+.pset.on{border-color:var(--acc)}
+.pset img{width:30px;height:30px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:var(--r);z-index:80;font-weight:500;font-size:13px}
+.code{font:600 28px/1 var(--mono);letter-spacing:.12em;text-align:center;padding:10px;background:var(--panel2);border:1px dashed var(--line);border-radius:var(--r)}
+@media(max-width:1060px){.app{grid-template-columns:64px minmax(0,1fr)}.brand span,.nav a span,.me,.sidefoot .linkbtn span{display:none}.nav a{justify-content:center}.brand{justify-content:center;padding:2px 0 18px}.eng{justify-content:center;font-size:0}}
+@media(max-width:900px){.view{grid-template-columns:minmax(0,1fr)}.groups{grid-template-columns:minmax(0,1fr)}#progress{grid-template-columns:minmax(0,1fr)}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}.stage{max-width:min(720px,100%)}}
+@media(max-width:640px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{display:none}
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));border-bottom:1px solid var(--line);background:var(--side);position:sticky;top:0;z-index:30}
+  .topbar .brand{padding:0;font-size:16px}.topbar .sp{margin-left:auto}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--side);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .tabbar a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;color:var(--mute);text-decoration:none;font-size:10.5px;font-weight:500}
+  .tabbar a.on{color:var(--acc2)}
+  .tabbar svg.i{width:21px;height:21px}
+  main{padding:8px 8px calc(78px + env(safe-area-inset-bottom))}
+  #toast{bottom:calc(84px + env(safe-area-inset-bottom));max-width:calc(100% - 32px);text-align:center}
+  .bwrap{grid-template-columns:8px minmax(0,1fr);gap:4px}
+  .pl{padding-left:12px;min-height:38px}
+  .clk{font-size:17px;min-width:66px;padding:6px 8px}
+  .panel section,.panel .sec{padding:12px}
+  h1{font-size:22px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M9 20h6M8 17h8l-1-6h-6zM12 4v2M10 5h4M9 11c-1-1-1-3 0-4h6c1 1 1 3 0 4"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 6-8 3 3"/><path d="M3 21h18"/></symbol>
+  <symbol id="i-analysis" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+  <symbol id="i-train" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+  <symbol id="i-progress" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-first" viewBox="0 0 24 24"><path d="M18 6l-6 6 6 6M7 6v12"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-last" viewBox="0 0 24 24"><path d="M6 6l6 6-6 6M17 6v12"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-5 5-5 8-1-1-2-2-2-4-2 2-2 5-2 8 0 4 3 7 7 7z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M14 3h7v7h-7zM3 14h7v7H3z" opacity=".35"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M9 7h6"/></symbol>
+  <symbol id="i-swords" viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 6.5L13 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0M16 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6.3"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/><circle cx="12" cy="19.5" r="1"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-knight" viewBox="0 0 24 24"><path d="M7 21h11M8 18h9c0-4-1-6-2-8l1-3-3 1-3-4-1 3-3 3 1 3 3-1-2 6z"/></symbol>
+  <symbol id="logo" viewBox="0 0 24 24"><circle cx="7" cy="19" r="2.2" fill="#fff"/><path d="M7 15.5V7.5h9" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 3.8l4.2 3.7-4.2 3.7" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><b><svg><use href="#logo"/></svg></b><span>NextMove</span></div>
+    <nav class="nav">
+      <a href="#play"><svg class="i"><use href="#i-play"/></svg><span>Play</span></a>
+      <a href="#review"><svg class="i"><use href="#i-review"/></svg><span>Review</span></a>
+      <a href="#analysis"><svg class="i"><use href="#i-analysis"/></svg><span>Analysis</span></a>
+      <a href="#train"><svg class="i"><use href="#i-train"/></svg><span>Train</span></a>
+      <a href="#progress"><svg class="i"><use href="#i-progress"/></svg><span>Progress</span></a>
+    </nav>
+    <div class="sidefoot">
+      <div class="me" id="meCard"></div>
+      <button class="linkbtn" data-open="settings"><svg class="i"><use href="#i-gear"/></svg><span>Settings</span></button>
+      <span class="eng engState">Loading engine…</span>
+    </div>
+  </aside>
+  <div>
+    <div class="topbar"><div class="brand"><b><svg><use href="#logo"/></svg></b>NextMove</div><span class="sp"></span><span class="eng engState"></span><button class="btn quiet" data-open="settings" aria-label="Settings"><svg class="i"><use href="#i-gear"/></svg></button></div>
+    <main>
+<!-- PLAY -->
+<section class="view" id="play">
+  <div class="stage">
+    <div class="pl" id="plTop"><span class="av"></span><span class="who"><span class="nm"></span><span class="mat"></span></span><span class="clk"></span></div>
+    <div class="bwrap"><div class="evalbar off"><i></i><span></span></div><div class="bd"></div></div>
+    <div class="pl" id="plBot"><span class="av"></span><span class="who"><span class="nm"></span><span class="mat"></span></span><span class="clk"></span></div>
+  </div>
+  <aside class="panel" id="playPanel">
+    <div id="setup">
+      <section>
+        <div class="seg" id="modeSeg"><button data-mode="bot"><svg class="i"><use href="#i-cpu"/></svg> Computer</button><button data-mode="local"><svg class="i"><use href="#i-users"/></svg> Same device</button><button data-mode="online"><svg class="i"><use href="#i-wifi"/></svg> Online</button></div>
+      </section>
+      <section id="botSec"><h3>Opponent</h3><div class="bots" id="bots"></div></section>
+      <section id="openSec"><label class="f">Bot opening<select id="botOpen"></select></label></section>
+      <section id="onlineSec" hidden>
+        <p class="small mute" style="margin-bottom:10px">Play your friend on another device. Create a game and send them the code, or enter theirs.</p>
+        <div class="row" style="gap:8px"><button class="btn" id="hostBtn"><svg class="i"><use href="#i-plus"/></svg> Create game</button><input type="text" id="joinCode" placeholder="Code" maxlength="6" style="width:110px;text-transform:uppercase"><button class="btn sec" id="joinBtn">Join</button></div>
+        <div id="hostBox" hidden style="margin-top:12px"><h3>Send this code to your friend</h3><div class="code" id="hostCode"></div><p class="small mute" id="hostWait" style="margin-top:8px">Waiting for them to join…</p></div>
+      </section>
+      <section id="colorSec"><h3>Your colour</h3><div class="seg" id="colorSeg"><button data-color="w">White</button><button data-color="r">Random</button><button data-color="b">Black</button></div></section>
+      <section id="clockSec"><h3>Clock</h3><div class="seg" id="tcSeg"><button data-tc="none">None</button><button data-tc="1+0">1+0</button><button data-tc="3+2">3+2</button><button data-tc="5+3">5+3</button><button data-tc="10+0">10+0</button></div></section>
+      <section id="startSec"><button class="btn wide" id="startGame">Play</button></section>
+    </div>
+    <div id="ingame" hidden>
+      <div class="ph"><span class="status"><i class="dot" id="pdot"></i><span id="pstatus">White to move</span></span><span class="sp mute small" id="popen"></span></div>
+      <ol class="sheet" id="pmoves"></ol>
+      <div class="sec" id="overBox" hidden><div class="result"><b id="overText">Game over</b><div class="row"><button class="btn" id="reviewThis">Review game</button><button class="btn sec" id="rematchBtn">Rematch</button><button class="btn sec" id="newBtn2">New game</button></div></div></div>
+      <div class="tools">
+        <button class="btn" id="hintBtn"><svg class="i"><use href="#i-bulb"/></svg>Hint</button>
+        <button class="btn" id="undoBtn"><svg class="i"><use href="#i-undo"/></svg>Takeback</button>
+        <button class="btn" id="flipBtn"><svg class="i"><use href="#i-flip"/></svg>Flip</button>
+        <button class="btn" id="evalBtn"><svg class="i"><use href="#i-eye"/></svg>Eval</button>
+        <button class="btn" id="resignBtn"><svg class="i"><use href="#i-flag"/></svg>Resign</button>
+        <button class="btn" id="newBtn"><svg class="i"><use href="#i-plus"/></svg>New</button>
+      </div>
+    </div>
+  </aside>
+</section>
+
+<!-- REVIEW -->
+<section class="view" id="review" hidden>
+  <div class="stage">
+    <div class="bwrap"><div class="evalbar"><i></i><span></span></div><div class="bd"></div></div>
+    <div class="fig" title="Tap to jump"><svg id="graph"></svg></div>
+    <div class="navr" id="rnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Last move"><svg class="i"><use href="#i-last"/></svg></button><button data-nav="flip" aria-label="Flip board"><svg class="i"><use href="#i-flip"/></svg></button></div>
+  </div>
+  <aside class="panel">
+    <div id="rInput">
+      <div class="ph"><h2>Game review</h2></div>
+      <section>
+        <p class="small mute">Paste a PGN. Chess.com: open the game → Share → PGN → Copy. Lichess: Share &amp; export → PGN.</p>
+        <textarea id="pgnIn" placeholder="1. e4 e5 2. Nf3 Nc6 …" style="margin-top:10px"></textarea>
+        <div class="row" style="margin-top:8px;gap:8px">
+          <label class="f" style="flex:1 1 150px">I played<select id="asSide"><option value="auto">Detect from my username</option><option value="w">White</option><option value="b">Black</option><option value="">Neither</option></select></label>
+          <label class="btn sec" style="align-self:flex-end">Upload .pgn<input type="file" id="pgnFile" accept=".pgn,.txt" hidden></label>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="analyseBtn">Review game</button><button class="btn quiet" id="sampleBtn">Try a sample</button></div>
+      </section>
+      <section><h3>Recent games</h3><div class="moments" id="recent"></div></section>
+    </div>
+    <div id="rResult" hidden>
+      <div class="ph"><div style="min-width:0"><h2 id="rTitle">Review</h2><p class="small mute" id="rSub"></p></div><button class="btn quiet sp" id="newReview" aria-label="New review"><svg class="i"><use href="#i-x"/></svg></button></div>
+      <div class="prog" id="rprog"><i></i></div>
+      <section>
+        <div class="sumgrid" id="sumgrid"></div>
+      </section>
+      <section id="momentsSec" hidden><h3>Key moments</h3><div class="moments" id="moments"></div></section>
+      <section>
+        <div class="exbar" id="exBar" hidden><span id="exLine"></span><button class="btn sec" id="exBack">Back to game</button></div>
+        <div class="detail" id="rdetail"></div>
+      </section>
+      <section class="row" style="padding-top:10px;padding-bottom:10px"><button class="btn sec" id="nextMistake">Next mistake</button><button class="btn" id="drillMine" hidden>Drill my mistakes</button><button class="btn quiet" id="toAnalysis">Open in analysis</button></section>
+      <ol class="sheet" id="rmoves" style="max-height:260px;border-top:1px solid var(--line)"></ol>
+    </div>
+  </aside>
+</section>
+
+<!-- ANALYSIS -->
+<section class="view" id="analysis" hidden>
+  <div class="stage">
+    <div class="bwrap"><div class="evalbar"><i></i><span></span></div><div class="bd"></div></div>
+    <div class="navr" id="anav"><button data-nav="first" aria-label="Start"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Back"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Forward"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="End"><svg class="i"><use href="#i-last"/></svg></button><button data-nav="flip" aria-label="Flip board"><svg class="i"><use href="#i-flip"/></svg></button></div>
+  </div>
+  <aside class="panel">
+    <div class="ph"><h2>Analysis</h2><span class="sp mute small" id="aDepth"></span><label class="chk small" style="margin-left:10px"><input type="checkbox" id="aEngine" checked> Engine</label></div>
+    <section><div class="elines" id="aLines"></div></section>
+    <ol class="sheet" id="aMoves" style="max-height:220px;border-top:1px solid var(--line)"></ol>
+    <section>
+      <label class="f">Position (FEN)<input type="text" id="aFen" spellcheck="false"></label>
+      <div class="row" style="margin-top:8px"><button class="btn sec" id="aLoad">Load FEN</button><button class="btn sec" id="aCopy"><svg class="i"><use href="#i-copy"/></svg>Copy FEN</button><button class="btn sec" id="aCopyPgn"><svg class="i"><use href="#i-copy"/></svg>Copy PGN</button><button class="btn quiet" id="aReset">Reset</button></div>
+      <p class="small mute" style="margin-top:10px">Right-click and drag to draw arrows; right-click a square to circle it.</p>
+    </section>
+  </aside>
+</section>
+
+<!-- TRAIN -->
+<section class="view wide" id="train" hidden>
+  <div id="hub">
+    <div class="thead" id="today"></div>
+    <div class="groups">
+      <div class="group"><h3>From your games</h3><div class="list">
+        <button class="item" data-start="drills"><span class="ti"><svg class="i"><use href="#i-repeat"/></svg></span><span><b>Mistake drills</b><small>Positions where you went wrong, repeated until they stick</small></span><em id="hDrills"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="conv"><span class="ti"><svg class="i"><use href="#i-trophy"/></svg></span><span><b>Convert your wins</b><small>Winning positions you didn't finish, against full Stockfish</small></span><em id="hConv"></em><svg class="i"><use href="#i-right"/></svg></button>
+      </div></div>
+      <div class="group"><h3>Tactics</h3><div class="list">
+        <button class="item" data-start="tactics"><span class="ti"><svg class="i"><use href="#i-knight"/></svg></span><span><b>Rated puzzles</b><small>Difficulty follows your rating; any winning move counts</small></span><em id="hTactics"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="streak"><span class="ti"><svg class="i"><use href="#i-flame"/></svg></span><span><b>Puzzle streak</b><small>Gets harder every solve. One miss ends it</small></span><em id="hStreak"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="rush"><span class="ti"><svg class="i"><use href="#i-bolt"/></svg></span><span><b>Puzzle rush</b><small>Three minutes, three strikes</small></span><em id="hRush"></em><svg class="i"><use href="#i-right"/></svg></button>
+      </div></div>
+      <div class="group"><h3>Openings</h3><div class="list">
+        <button class="item" data-start="gambits"><span class="ti"><svg class="i"><use href="#i-swords"/></svg></span><span><b>Gambit lab</b><small>Gambits for both colours, their plans, and the traps</small></span><em id="hGambit"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="open"><span class="ti"><svg class="i"><use href="#i-book"/></svg></span><span><b>Opening lines</b><small>Drill main lines; other theory is accepted with a note</small></span><em id="hOpen"></em><svg class="i"><use href="#i-right"/></svg></button>
+      </div></div>
+      <div class="group"><h3>Technique</h3><div class="list">
+        <button class="item" data-start="end"><span class="ti"><svg class="i"><use href="#i-crown"/></svg></span><span><b>Endgames</b><small>Basic mates, pawn and rook endings, defending draws</small></span><em id="hEnd"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="vision"><span class="ti"><svg class="i"><use href="#i-grid"/></svg></span><span><b>Board vision</b><small>Name squares fast — 30 seconds, from either side</small></span><em id="hVision"></em><svg class="i"><use href="#i-right"/></svg></button>
+      </div></div>
+    </div>
+  </div>
+  <div class="view" id="session" hidden>
+    <div class="stage"><div class="pl" id="tTop" hidden></div><div class="bwrap noeval"><div class="evalbar"><i></i><span></span></div><div class="bd"></div></div></div>
+    <aside class="panel">
+      <div class="ph"><button class="btn quiet" id="tBack" style="padding-left:2px"><svg class="i" style="transform:scaleX(-1)"><use href="#i-right"/></svg>Train</button><h2 id="tTitle"></h2><span class="sp mute small" id="tMeta"></span></div>
+      <section class="prompt" id="tPrompt"></section>
+      <section id="tList" hidden></section>
+      <section id="tFbSec"><div id="tFb"></div></section>
+      <div class="tools" id="tTools">
+        <button class="btn" id="tHint"><svg class="i"><use href="#i-bulb"/></svg>Hint</button>
+        <button class="btn" id="tShow"><svg class="i"><use href="#i-eye"/></svg>Answer</button>
+        <button class="btn" id="tUndo"><svg class="i"><use href="#i-undo"/></svg>Undo</button>
+        <button class="btn" id="tRestart"><svg class="i"><use href="#i-repeat"/></svg>Restart</button>
+        <button class="btn" id="tSkip"><svg class="i"><use href="#i-next"/></svg>Skip</button>
+        <button class="btn" id="tNext" style="color:var(--acc2)"><svg class="i"><use href="#i-right"/></svg>Next</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- PROGRESS -->
+<section class="view" id="progress" hidden>
+  <div style="grid-column:1/-1"><h1>Progress</h1><p class="mute" id="syncNote"></p></div>
+  <div class="stats" id="stats"></div>
+  <div class="panel card"><div class="ph"><h2>Puzzle rating</h2></div><section><div class="fig"><svg id="rchart"></svg></div></section></div>
+  <div class="panel card"><div class="ph"><h2>Accuracy in your games</h2></div><section><div class="fig"><svg id="achart"></svg></div></section></div>
+  <div class="panel" style="grid-column:1/-1"><div class="ph"><h2>Activity</h2><span class="sp small mute" id="calNote"></span></div><section><div class="cal" id="cal"></div></section></div>
+  <div class="panel"><div class="ph"><h2>Where your mistakes happen</h2></div><section id="phases"></section></div>
+  <div class="panel"><div class="ph"><h2>Drill schedule</h2></div><section id="boxes"></section></div>
+</section>
+    </main>
+  </div>
+</div>
+<nav class="tabbar">
+  <a href="#play"><svg class="i"><use href="#i-play"/></svg>Play</a>
+  <a href="#review"><svg class="i"><use href="#i-review"/></svg>Review</a>
+  <a href="#analysis"><svg class="i"><use href="#i-analysis"/></svg>Analysis</a>
+  <a href="#train"><svg class="i"><use href="#i-train"/></svg>Train</a>
+  <a href="#progress"><svg class="i"><use href="#i-progress"/></svg>Progress</a>
+</nav>
+
+<!-- SETTINGS -->
+<div class="overlay" id="settings" hidden>
+  <div class="sheetdlg" role="dialog" aria-label="Settings">
+    <div class="ph"><h2>Settings</h2><button class="btn quiet sp" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <section><h3>Board</h3><div class="swatches" id="swatches"></div></section>
+    <section><h3>Pieces</h3><div class="psets" id="psets"></div></section>
+    <section><h3>Move names in explanations</h3><div class="seg" id="notSeg"><button data-n="plain">Plain English — “bishop takes the rook on g5”</button><button data-n="san">Chess notation — “Bxg5”</button></div></section>
+    <section class="row" style="gap:16px"><label class="chk"><input type="checkbox" id="sSound"> Move sounds</label><label class="chk"><input type="checkbox" id="sCoords"> Coordinates</label><label class="chk"><input type="checkbox" id="sAnim"> Animate moves</label></section>
+    <section><label class="f">Your usernames, comma separated (used to spot your side in imported games)<input type="text" id="nameIn" placeholder="e.g. landon_s, landon"></label></section>
+    <section><label class="f">Review depth<select id="depthIn"><option value="12">Fast</option><option value="14">Normal</option><option value="16">Deep (slower)</option></select></label></section>
+    <section><button class="btn sec" id="resetBtn">Reset all progress</button><div class="fb no" id="resetConfirm" hidden style="margin-top:10px"><b>Erase all games, drills and ratings?</b><div class="row"><button class="btn" id="resetYes" style="background:var(--no)">Erase</button><button class="btn sec" id="resetNo">Cancel</button></div></div></section>
+    <section><p class="small mute">Engine: Stockfish 17.1 (GPLv3). Pieces: cburnett and merida (GPLv2+), chessnut (Apache 2.0), fantasy (MIT), via the Lichess project.</p></section>
+  </div>
+</div>
+<div id="toast" hidden></div>
+<script src="chess.js"></script>
+<script src="core.js"></script>
+<script src="explain.js"></script>
+<script src="pieces.js"></script>
+<script src="ui.js"></script>
+<script src="play.js"></script>
+<script src="review.js"></script>
+<script src="analysis.js"></script>
+<script src="train.js"></script>
+<script src="progress.js"></script>
+</body>
+</html>

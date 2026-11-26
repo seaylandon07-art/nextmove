@@ -1,0 +1,10 @@
+{
+  "name": "nextmove",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && wrangler dev",
+    "deploy": "node build.mjs && wrangler deploy"
+  },
+  "devDependencies": { "wrangler": "4.168.0" }
+}

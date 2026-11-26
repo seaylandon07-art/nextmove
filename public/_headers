@@ -1,0 +1,11 @@
+/sf.wasm
+  Cache-Control: public, max-age=2592000
+/sf-asm.js
+  Cache-Control: public, max-age=2592000
+/sf.js
+  Cache-Control: public, max-age=2592000
+/icons/*
+  Cache-Control: public, max-age=2592000
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
