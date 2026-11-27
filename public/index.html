@@ -501,6 +501,43 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
 .appcard{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:16px;align-items:center;padding:14px 18px;margin-bottom:36px;border-radius:22px;background:radial-gradient(circle at 0% 50%,rgba(241,207,134,.12),transparent 60%),linear-gradient(180deg,rgba(150,166,232,.08),rgba(150,166,232,.03));box-shadow:inset 0 0 0 1px rgba(241,207,134,.25)}
 .appcard .art{width:72px;height:72px}.appcard b{font-size:17px}
 @media(max-width:700px){.appcard{grid-template-columns:56px minmax(0,1fr)}.appcard .art{width:56px;height:56px}.appcard .row{grid-column:1/-1}}
+/* profile, XP, awards */
+.pcard{position:relative;border-radius:24px;overflow:hidden;background:#0d1226;box-shadow:inset 0 0 0 1px rgba(160,176,236,.14),0 20px 50px -30px rgba(0,0,0,.8)}
+.pban{height:140px;background:var(--ban);position:relative}.pban::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,18,38,0) 20%,#0d1226)}
+.pmain{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:20px;align-items:end;padding:0 24px 20px;margin-top:-56px;position:relative}
+.pav{position:relative;width:104px;height:104px;border-radius:28px;background:radial-gradient(circle at 50% 35%,#2b3670,#141a38);box-shadow:inset 0 0 0 2px rgba(241,207,134,.55),0 14px 30px -12px rgba(0,0,0,.8);display:grid;place-items:center}
+.pav img{width:80px;height:80px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
+.pav em{position:absolute;right:-8px;bottom:-8px;min-width:36px;height:36px;padding:0 8px;border-radius:12px;background:#f1cf86;color:#1a1305;font-weight:800;font-size:17px;line-height:36px;font-style:normal;font-variant-numeric:tabular-nums;text-align:center;box-shadow:0 0 0 4px #0d1226}
+.pwho b{font-size:26px;letter-spacing:-.01em;display:block}.pwho span{color:var(--mute,#8990b0);font-size:14px}.pwho small{color:var(--mute,#8990b0);font-size:12.5px;font-variant-numeric:tabular-nums}
+.xpbar{height:9px;border-radius:9px;background:rgba(160,176,236,.12);margin:10px 0 5px;overflow:hidden;max-width:460px}.xpbar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#d9a74e,#f1cf86);transition:width .6s cubic-bezier(.22,1,.36,1)}
+.pnums{display:flex;gap:22px}.pnums div{text-align:center}.pnums b{display:block;font-size:24px;font-variant-numeric:tabular-nums}.pnums small{color:var(--mute,#8990b0);font-size:12px}
+.pacts{position:absolute;top:14px;right:14px}.pacts .btn{backdrop-filter:blur(8px);background:rgba(10,14,28,.55)}
+.banpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:0 24px 22px}
+.bano{all:unset;cursor:pointer;border-radius:14px;overflow:hidden;background:rgba(150,166,232,.06);box-shadow:inset 0 0 0 1px rgba(160,176,236,.12);padding-bottom:8px}
+.bano i{display:block;height:54px;margin-bottom:6px}.bano span{display:block;padding:0 10px;font-weight:600;font-size:14px}.bano small{display:block;padding:0 10px;font-size:12px;color:var(--mute,#8990b0)}
+.bano.on{box-shadow:inset 0 0 0 2px #f1cf86}.bano:disabled{cursor:default;opacity:.45}.bano:disabled i{filter:grayscale(1)}
+.bano:focus-visible{outline:2px solid #f1cf86;outline-offset:2px}
+.awards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.aw{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:center;padding:10px 12px;border-radius:16px;background:rgba(150,166,232,.04);box-shadow:inset 0 0 0 1px rgba(160,176,236,.08);opacity:.55}
+.aw .awi{grid-row:1/3;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(160,176,236,.08)}.aw .awi img{width:32px;height:32px;filter:grayscale(1) opacity(.5)}
+.aw b{font-size:14px}.aw small{font-size:12px;color:var(--mute,#8990b0);line-height:1.3}
+.aw.got{opacity:1;background:radial-gradient(circle at 0 50%,color-mix(in srgb,var(--tc) 14%,transparent),transparent 60%),rgba(150,166,232,.05);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tc) 35%,transparent)}
+.aw.got .awi{background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--tc) 55%,#1a2040),#141a38);box-shadow:inset 0 0 0 2px var(--tc)}.aw.got .awi img{filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+#xpPop{position:fixed;left:50%;bottom:28px;transform:translate(-50%,24px);opacity:0;pointer-events:none;z-index:90;padding:8px 16px;border-radius:999px;background:linear-gradient(180deg,#f6dc9e,#e2b35e);color:#1a1305;font-weight:800;font-size:14px;box-shadow:0 12px 30px -8px rgba(226,179,94,.6);transition:transform .35s cubic-bezier(.22,1,.36,1),opacity .25s}
+#xpPop.big{font-size:16px;padding:12px 22px}#xpPop.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:700px){.pmain{grid-template-columns:auto minmax(0,1fr);padding:0 16px 18px}.pnums{grid-column:1/-1;justify-content:space-around}.pav{width:84px;height:84px;border-radius:22px}.pav img{width:64px;height:64px}.pwho b{font-size:21px}.banpick{padding:0 16px 18px}#xpPop{bottom:92px}}
+@media(prefers-reduced-motion:reduce){#xpPop,.xpbar i{transition:none}}
+.seek{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border-radius:16px;background:rgba(241,207,134,.07);box-shadow:inset 0 0 0 1px rgba(241,207,134,.3)}
+.seek b{display:block;font-size:14.5px}.seek small{color:var(--mute,#8990b0);font-size:12.5px;font-variant-numeric:tabular-nums}
+.spin{width:22px;height:22px;border-radius:50%;border:3px solid rgba(241,207,134,.2);border-top-color:#f1cf86;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+.modes.four{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:700px){.modes.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.wk{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.wk div{padding:12px 14px;border-radius:14px;background:rgba(150,166,232,.05);box-shadow:inset 0 0 0 1px rgba(160,176,236,.08)}
+.wk small{display:block;color:var(--mute,#8990b0);font-size:12.5px}.wk b{font-size:26px;font-variant-numeric:tabular-nums}.wk span{display:block;font-size:12.5px;color:var(--mute,#8990b0)}
+.wk .up{color:#7fd69a}.wk .dn{color:#ff8b7a}
+.wfocus{margin:14px 0 0;padding:12px 14px;border-radius:14px;background:rgba(241,207,134,.07);box-shadow:inset 0 0 0 1px rgba(241,207,134,.22);font-size:14.5px}
+.wfocus:empty{display:none}
 </style>
 </head>
 <body>
@@ -666,6 +703,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
       <div class="hhead"><h2>Play</h2><a class="btn quiet" href="#play">All opponents</a></div>
       <div class="modes">
         <button class="mode" data-mode-go="bot"><svg class="art"><use href="#ill-bot"/></svg><b>Play a bot</b><small>10 opponents, 400 to 3000</small></button>
+        <button class="mode" id="homeOnline" hidden><svg class="art"><use href="#ill-online"/></svg><b>Play online</b><small>Get paired with a real player</small></button>
         <button class="mode" id="homeFriend"><svg class="art"><use href="#ill-friend"/></svg><b>Play a friend</b><small>Send a code, play online</small></button>
         <button class="mode" data-mode-go="local"><svg class="art"><use href="#ill-local"/></svg><b>Pass and play</b><small>Two players, one device</small></button>
       </div>
@@ -695,12 +733,16 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
   <aside class="panel" id="playPanel">
     <div id="setup">
       <section>
-        <div class="seg" id="modeSeg"><button data-mode="bot"><svg class="mart"><use href="#ill-bot"/></svg>Computer</button><button data-mode="local"><svg class="mart"><use href="#ill-local"/></svg>Same device</button><button data-mode="online"><svg class="mart"><use href="#ill-friend"/></svg>Friend online</button></div>
+        <div class="seg" id="modeSeg"><button data-mode="bot"><svg class="mart"><use href="#ill-bot"/></svg>Computer</button><button data-mode="local"><svg class="mart"><use href="#ill-local"/></svg>Same device</button><button data-mode="online"><svg class="mart"><use href="#ill-online"/></svg>Online</button></div>
       </section>
       <section id="botSec"><h3>Opponent</h3><div class="bots" id="bots"></div></section>
       <section id="openSec"><label class="f">Bot opening<select id="botOpen"></select></label></section>
       <section id="onlineSec" hidden>
-        <p class="small mute" style="margin-bottom:10px">Play your friend on another device. Create a game and send them the code, or enter theirs.</p>
+        <div id="seekSec"><h3>Play someone new</h3><p class="small mute" style="margin-bottom:10px">We pair you with a player near your rating on the clock you pick below. Online games count toward your rating.</p>
+          <button class="btn wide" id="seekBtn"><svg class="i"><use href="#i-play"/></svg> Find an opponent</button>
+          <div class="seek" id="seekBox" hidden><span class="spin"></span><div><b>Looking for an opponent</b><small><span id="seekTc"></span> · <span id="seekTime">0:00</span> · widening the rating range as we wait</small></div><button class="btn quiet" id="seekCancel">Cancel</button></div>
+          <h3 style="margin-top:18px">Play a friend</h3></div>
+        <p class="small mute" style="margin-bottom:10px">Create a game and send your friend the code, or enter theirs.</p>
         <div class="row" style="gap:8px"><button class="btn" id="hostBtn"><svg class="i"><use href="#i-plus"/></svg> Create game</button><input type="text" id="joinCode" placeholder="Code" maxlength="6" style="width:110px;text-transform:uppercase"><button class="btn sec" id="joinBtn">Join</button></div>
         <div id="hostBox" hidden style="margin-top:12px"><h3>Send this code to your friend</h3><div class="code" id="hostCode"></div><p class="small mute" id="hostWait" style="margin-top:8px">Waiting for them to join…</p></div>
       </section>
@@ -797,6 +839,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
     <div class="groups">
       <div class="group"><h3>From your games</h3><div class="list">
         <button class="item" data-start="drills"><span class="ti art"><svg><use href="#ill-drills"/></svg></span><span><b>Mistake drills</b><small>Positions where you went wrong, repeated until they stick</small></span><em id="hDrills"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="mine"><span class="ti art"><svg><use href="#ill-review"/></svg></span><span><b>Your game puzzles</b><small>Every time an opponent slipped in your games, find the move that punishes it</small></span><em id="hMine"></em><svg class="i"><use href="#i-right"/></svg></button>
         <button class="item" data-start="conv"><span class="ti art"><svg><use href="#ill-end"/></svg></span><span><b>Convert your wins</b><small>Winning positions you didn't finish, against full Stockfish</small></span><em id="hConv"></em><svg class="i"><use href="#i-right"/></svg></button>
       </div></div>
       <div class="group"><h3>Tactics</h3><div class="list">
@@ -836,12 +879,15 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
 <!-- PROGRESS -->
 <section class="view" id="progress" hidden>
   <div style="grid-column:1/-1"><h1>Progress</h1><p class="mute" id="syncNote"></p></div>
+  <div id="profile" style="grid-column:1/-1"></div>
+  <div class="panel week" style="grid-column:1/-1"><div class="ph"><h2>Your week</h2><span class="sp small mute" id="weekNote"></span></div><section><div class="wk" id="week"></div><p class="wfocus" id="weekFocus"></p></section></div>
   <div class="stats" id="stats"></div>
   <div class="panel card"><div class="ph"><h2>Puzzle rating</h2></div><section><div class="fig"><svg id="rchart"></svg></div></section></div>
   <div class="panel card"><div class="ph"><h2>Accuracy in your games</h2></div><section><div class="fig"><svg id="achart"></svg></div></section></div>
   <div class="panel" style="grid-column:1/-1"><div class="ph"><h2>Activity</h2><span class="sp small mute" id="calNote"></span></div><section><div class="cal" id="cal"></div></section></div>
   <div class="panel"><div class="ph"><h2>Where your mistakes happen</h2></div><section id="phases"></section></div>
   <div class="panel"><div class="ph"><h2>Drill schedule</h2></div><section id="boxes"></section></div>
+  <div class="panel" style="grid-column:1/-1"><div class="ph"><h2>Awards</h2><span class="sp small mute" id="awNote"></span></div><section><div class="awards" id="awards"></div></section></div>
 </section>
     </main>
   </div>
@@ -879,6 +925,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
 <script src="analysis.js"></script>
 <script src="train.js"></script>
 <script src="progress.js"></script>
+<script src="rewards.js"></script>
 <script src="home.js"></script>
 </body>
 </html>

@@ -76,6 +76,22 @@ function addDrill(i, R = RS) {
   s.drills.push({ id: A.uid(), fen: m.fen, played: m.u, best: R.an[i].lines[0].move, cls: c.cls, src: `${R.headers.White || '?'} – ${R.headers.Black || '?'}`, box: 0, due: Date.now(), n: 0, ok: 0, created: Date.now() });
   return true;
 }
+// Every time your opponent made a mistake, the position after it is a puzzle: you to move, with a shot
+// that wins. Whether you found it in the game or not, it comes back in Train → Your game puzzles.
+function addGamePuzzles(R) {
+  const s = S(); s.mypuz = s.mypuz || [];
+  const src = `${R.headers.White || '?'} – ${R.headers.Black || '?'}`;
+  for (let i = 0; i < R.moves.length - 1; i++) {
+    const m = R.moves[i], c = R.cls[i]; if (m.color === R.me || !c || !['mistake', 'blunder'].includes(c.cls)) continue;
+    const fen = R.fens[i + 1], an = R.an[i + 1] && R.an[i + 1].lines[0]; if (!an || !an.pv || !an.pv.length) continue;
+    const win = K.winFor(an, R.me); if (win < 70 || s.mypuz.some(p => p.fen === fen)) continue;
+    const plies = an.mate != null ? Math.min(an.pv.length, Math.abs(an.mate) * 2 - 1) : Math.min(an.pv.length, 3);
+    const sol = an.pv.slice(0, plies % 2 ? plies : plies - 1); if (!sol.length) continue;
+    const mine = R.moves[i + 1]; const found = !!mine && mine.u === sol[0];
+    s.mypuz.push({ id: 'g' + A.uid(), fen, sol, pre: R.fens[i], last: m.u, theme: an.mate != null ? 'Mate' : 'Punish the mistake', src, move: Math.floor(i / 2) + 2, found, rating: Math.round(s.puz.r), created: Date.now(), tries: 0, solved: 0 });
+  }
+  s.mypuz = s.mypuz.slice(-300);
+}
 function finish(R = RS) {
   if (R === RS) A.track('review');
   const sum = summary(R); const s = S(); const key = R.fens[R.fens.length - 1] + '|' + R.moves.length;
@@ -88,6 +104,7 @@ function finish(R = RS) {
     const c = R.cls[i]; if (!c) return;
     if (['mistake', 'blunder', 'miss'].includes(c.cls)) { phase[ph]++; if (R.me && addDrill(i, R)) R.added++; }
   });
+  if (R.me) addGamePuzzles(R);
   if (R.me) {
     const res = R.headers.Result; const won = (R.me === 'w' && res === '1-0') || (R.me === 'b' && res === '0-1');
     if (!won) for (let i = 20; i < R.fens.length; i++) {

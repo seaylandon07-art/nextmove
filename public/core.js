@@ -519,5 +519,5 @@ class Board {
   }
 }
 
-return { START, VAL, NAME, esc, $, sleep, S: () => S, save, initSync, onSync: f => listeners.push(f), syncState: () => syncState, eng, analyse, cpv, winW, winFor, fmtEval, moveAcc, gameAcc, mv, uciOf, sanOf, pvSan, matDiff, nonPawn, key4, isSacrifice, BOOK, BOOKLINES: [], loadBook, addLine, fillNames, openingName, CLS, BAD, classify, explain, describeTactic, judge, Board, setPieces };
+return { START, VAL, NAME, esc, $, sleep, S: () => S, save, initSync, onSync: f => listeners.push(f), syncState: () => syncState, eng, analyse, cpv, winW, winFor, fmtEval, moveAcc, gameAcc, mv, uciOf, sanOf, pvSan, matDiff, nonPawn, key4, isSacrifice, BOOK, BOOKLINES: [], loadBook, addLine, fillNames, openingName, CLS, BAD, classify, explain, describeTactic, judge, Board, setPieces, PIECE };
 })();

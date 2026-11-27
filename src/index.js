@@ -4,6 +4,7 @@
  *   POST /api/signup, /api/login, /api/logout   accounts (username + password)
  *   GET  /api/me                                current account
  *   GET/PUT /api/state                          the player's saved progress (one JSON blob)
+ *   GET  /api/lobby                             WebSocket matchmaking: seek a game, get paired with a room code
  *   GET  /api/room/:code                        WebSocket room for an online game (Durable Object)
  */
 import { DurableObject } from 'cloudflare:workers';
@@ -194,6 +195,11 @@ async function handleApi(request, env, url, ctx) {
   if (path === '/api/ev' && method === 'POST') return event(request, env);
   if (path === '/api/login' && method === 'POST') return login(request, env);
 
+  if (path === '/api/lobby') {
+    if (request.headers.get('upgrade') !== 'websocket') return error('Expected a WebSocket.', 426);
+    return env.LOBBY.get(env.LOBBY.idFromName('main')).fetch(request);
+  }
+
   if (path.startsWith('/api/room/')) {
     const code = path.slice('/api/room/'.length);
     if (!/^[A-Za-z0-9_-]{3,40}$/.test(code)) return error('Bad room code.');
@@ -312,4 +318,52 @@ export class GameRoom extends DurableObject {
 
   async webSocketClose(ws) { try { ws.close(); } catch { } this.broadcastPeers(ws); }
   async webSocketError(ws) { this.broadcastPeers(ws); }
+}
+
+/**
+ * Matchmaking. Players send {t:'seek', tc, r, name}; waiting seeks live in each socket's attachment
+ * (so hibernation keeps them). A pair is made when the time controls match and the rating gap fits a
+ * window that widens the longer either player waits. Both get the same fresh room code and a colour,
+ * then play in a GameRoom exactly like a friend game.
+ */
+const LOBBY_TCS = ['1+0', '3+2', '5+3', '10+0'];
+const ROOM_CH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export class Lobby extends DurableObject {
+  async fetch() {
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+    this.ctx.acceptWebSocket(server);
+    server.serializeAttachment({ seek: null });
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws, raw) {
+    if (typeof raw !== 'string' || raw.length > 2000) return;
+    let m; try { m = JSON.parse(raw); } catch { return; }
+    if (m.t === 'ping') { ws.send('{"t":"pong"}'); return; }
+    if (m.t === 'cancel') { ws.serializeAttachment({ seek: null }); return; }
+    if (m.t !== 'seek' || !LOBBY_TCS.includes(m.tc)) return;
+    const prev = (ws.deserializeAttachment() || {}).seek;
+    const r = Math.max(100, Math.min(3200, Math.round(+m.r) || 1000));
+    const me = { tc: m.tc, r, name: String(m.name || 'Player').replace(/[\u0000-\u001f]/g, '').slice(0, 24) || 'Player', since: prev && prev.tc === m.tc ? prev.since : Date.now() };
+    const now = Date.now(); let best = null, bestGap = Infinity;
+    for (const other of this.ctx.getWebSockets()) {
+      if (other === ws) continue;
+      const a = other.deserializeAttachment(); if (!a || !a.seek || a.seek.tc !== me.tc) continue;
+      const waited = Math.max(now - a.seek.since, now - me.since) / 1000;
+      const gap = Math.abs(a.seek.r - me.r), window = 150 + waited * 25;   // ±150 at once, anyone after about a minute
+      if (gap <= window && gap < bestGap) { best = other; bestGap = gap; }
+    }
+    if (!best) { ws.serializeAttachment({ seek: me }); ws.send('{"t":"waiting"}'); return; }
+    const opp = best.deserializeAttachment().seek;
+    best.serializeAttachment({ seek: null }); ws.serializeAttachment({ seek: null });
+    const bytes = crypto.getRandomValues(new Uint8Array(8)); let code = 'm';
+    for (const b of bytes) code += ROOM_CH[b % ROOM_CH.length];
+    const hostWhite = crypto.getRandomValues(new Uint8Array(1))[0] < 128;
+    try { best.send(JSON.stringify({ t: 'match', code, role: 'host', color: hostWhite ? 'w' : 'b', tc: me.tc, opp: { name: me.name, r: me.r } })); } catch { }
+    try { ws.send(JSON.stringify({ t: 'match', code, role: 'guest', color: hostWhite ? 'b' : 'w', tc: me.tc, opp: { name: opp.name, r: opp.r } })); } catch { }
+  }
+
+  async webSocketClose(ws) { try { ws.close(); } catch { } }
+  async webSocketError() { }
 }

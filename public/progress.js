@@ -27,7 +27,51 @@ function render() {
   $('#phases').innerHTML = [['op', 'Opening'], ['mid', 'Middlegame'], ['end', 'Endgame']].map(([k, n]) => `<div class="hb"><span>${n}</span><div><i style="width:${rate(k) / mx * 100}%"></i></div><b>${nph[k] ? rate(k).toFixed(1) + '%' : '–'}</b></div>`).join('') + `<p class="small mute">Share of your moves that were a mistake, miss or blunder${revs.length ? `, across ${revs.length} game${revs.length === 1 ? '' : 's'}` : ' (needs reviewed games)'}.</p>`;
   const boxes = [0, 0, 0, 0, 0, 0]; s.drills.forEach(d => boxes[d.box]++);
   $('#boxes').innerHTML = boxes.map((n, i) => `<div class="hb"><span>${['New / missed', '1 day', '3 days', '1 week', '16 days', 'Mastered'][i]}</span><div><i style="width:${n / Math.max(1, ...boxes) * 100}%"></i></div><b>${n}</b></div>`).join('');
+  renderWeek();
   $('#syncNote').textContent = K.syncState() === 'synced' ? 'Synced across your devices.' : 'Saved in this browser.';
+}
+/* ---------- weekly report: the last 7 days against the 7 before ---------- */
+function renderWeek() {
+  const s = S(); const now = Date.now(), W = 7 * A.DAY;
+  const day = t => new Date(t - new Date(t).getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  const from = day(now - W + A.DAY), prevFrom = day(now - 2 * W + A.DAY);
+  const inW = d => d >= from, inP = d => d >= prevFrom && d < from;
+  const won = g => g.me && ((g.result === '1-0' && g.me === 'w') || (g.result === '0-1' && g.me === 'b'));
+  const games = s.games.filter(g => g.result && g.result !== '*' && inW(g.date || ''));
+  const W_ = games.filter(won).length, D_ = games.filter(g => g.result === '1/2-1/2').length, L_ = games.length - W_ - D_;
+  const acc = list => { const a = list.filter(r => r.me).map(r => A.ccAcc(r.me === 'w' ? r.accW : r.accB)).filter(x => x != null); return a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null; };
+  const accW = acc(s.reviews.filter(r => inW(r.date || ''))), accP = acc(s.reviews.filter(r => inP(r.date || '')));
+  const ph = s.puz.hist.filter(h => h.t > now - W); const before = s.puz.hist.filter(h => h.t <= now - W).slice(-1)[0];
+  const pd = ph.length ? ph[ph.length - 1].r - (before ? before.r : 1000) : 0;
+  const eh = (s.elo && s.elo.hist) || []; const ew = eh.filter(h => h.t > now - W); const eb = eh.filter(h => h.t <= now - W).slice(-1)[0];
+  const ed = ew.length ? ew[ew.length - 1].r - (eb ? eb.r : 1000) : 0;
+  const xpW = Object.entries((s.xp && s.xp.days) || {}).filter(([d]) => inW(d)).reduce((a, [, n]) => a + n, 0);
+  const active = Object.entries(s.days || {}).filter(([d, n]) => inW(d) && n).length;
+  const found = s.drills.filter(d => d.created > now - W).length;
+  const sign = n => n > 0 ? `<span class="up">+${n}</span>` : n < 0 ? `<span class="dn">${n}</span>` : '';
+  const cell = (a, b, c) => `<div><small>${a}</small><b>${b}</b><span>${c}</span></div>`;
+  $('#week').innerHTML = [
+    cell('Games', games.length, games.length ? `${W_} won · ${D_} drawn · ${L_} lost` : 'none this week'),
+    cell('Accuracy', accW ?? '–', accW == null ? 'review a game to see it' : accP == null ? 'average this week' : `${accW >= accP ? '<span class="up">' : '<span class="dn">'}${accW >= accP ? '+' : ''}${accW - accP}</span> vs last week`),
+    cell('Play rating', s.elo ? s.elo.r : '–', ew.length ? `${sign(ed) || 'no change'} this week` : 'no rated games'),
+    cell('Puzzles', ph.length, ph.length ? `${ph.filter(h => h.ok).length} first try · ${sign(Math.round(pd)) || 'rating flat'}` : 'none this week'),
+    cell('New drills', found, found ? 'mistakes caught from your games' : 'no new mistakes found'),
+    cell('XP earned', xpW.toLocaleString(), `${active} of 7 days active`)
+  ].join('');
+  $('#weekNote').textContent = `${new Date(now - W + A.DAY).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} to today`;
+  // one concrete thing to do next
+  const revs = s.reviews.filter(r => r.me && inW(r.date || '')); const ph3 = { op: 0, mid: 0, end: 0 }, n3 = { op: 0, mid: 0, end: 0 };
+  revs.forEach(r => { for (const k in ph3) { ph3[k] += (r.phase || {})[k] || 0; n3[k] += (r.nPhase || {})[k] || 0; } });
+  const worst = ['op', 'mid', 'end'].filter(k => n3[k] >= 8).sort((a, b) => ph3[b] / n3[b] - ph3[a] / n3[a])[0];
+  const due = A.due().length, mine = (s.mypuz || []).filter(p => !p.solved).length;
+  const tip = due >= 5 ? `You have ${due} mistake drills due. Clearing them is the fastest way to stop repeating the same errors.`
+    : worst === 'op' ? 'Most of your mistakes this week came in the opening. Pick one opening course in Train and drill it until it’s clean.'
+    : worst === 'end' ? 'Your endgames cost you the most this week. Try the endgame lessons in Train, then the “Convert your wins” positions.'
+    : worst === 'mid' ? `The middlegame is where your games were decided this week. ${mine ? `Start with your ${mine} unsolved game puzzles,` : 'Do 10 rated puzzles a day,'} so you spot the shots your opponents leave.`
+    : !games.length ? 'No games yet this week. Play one against a bot near your rating and the review will tell you exactly what to work on.'
+    : accW != null && accP != null && accW > accP ? 'Your accuracy went up this week. Keep the same routine: a game, its review, then your drills.'
+    : 'Review your games with your side set so the drills and this report can learn from them.';
+  $('#weekFocus').textContent = tip;
 }
 function line(svg, vals, label) {
   const W = svg.clientWidth, H = svg.clientHeight; if (!W) return;

@@ -51,7 +51,8 @@ function renderSetup() {
   $$('#colorSeg button').forEach(b => b.classList.toggle('on', b.dataset.color === P.color));
   $$('#tcSeg button').forEach(b => b.classList.toggle('on', b.dataset.tc === P.tc));
   $('#botSec').hidden = P.mode !== 'bot'; $('#openSec').hidden = P.mode !== 'bot';
-  $('#colorSec').hidden = P.mode === 'local'; $('#onlineSec').hidden = P.mode !== 'online';
+  $('#colorSec').hidden = P.mode === 'local'; $('#onlineSec').hidden = P.mode !== 'online'; $('#seekSec').hidden = !window.NM_WEB;
+  if (P.mode !== 'online' && lob) stopSeek();
   $('#startSec').hidden = P.mode === 'online';
   const sel = $('#botOpen');
   if (!sel.dataset.filled && A.dataReady) {
@@ -106,6 +107,7 @@ A.BOTS = BOTS;
 A.quickBot = (i, color) => { leaveOnline(); P.mode = 'bot'; P.bot = i; A.go('play'); startGame(color ? { color } : {}); };
 A.playMode = m => { P.mode = m; if (P.g && !P.over) { A.go('play'); return; } newGame(); A.go('play'); renderSetup(); };
 A.playOnline = () => { P.mode = 'online'; newGame(); A.go('play'); renderSetup(); };
+A.playRandom = () => { A.playOnline(); A.findOpponent(); };
 A.botForMe = () => { const r = S().puz.r || 1000; let bi = 0; BOTS.forEach((b, i) => { if (Math.abs(b.r - r) < Math.abs(BOTS[bi].r - r)) bi = i; }); return { i: bi, name: BOTS[bi].n, r: BOTS[bi].r }; };
 A.playFrom = (moves, color, title) => {
   leaveOnline(); P.mode = 'bot'; P.bot = A.botForMe().i; A.go('play');
@@ -259,19 +261,20 @@ $('#coachBtn').onclick = () => { const u = A.ui(); u.coach = u.coach === false; 
 function myAcc() { const a = P.coachAcc.filter(x => x != null); return a.length >= 4 ? K.gameAcc(a) : null; }
 function myGameRating() { const s = S(); const prior = s.elo ? s.elo.r - (P.eloDelta || 0) : 1000; return A.gameRating({ accs: P.coachAcc, prior, opp: botObj().r }); }
 function applyElo(res) {
-  if (P.mode !== 'bot') return;
+  const rated = P.mode === 'bot' || (P.mode === 'online' && P.online && P.online.oppR);
+  if (!rated) return;
   const s = S(); s.elo = s.elo || { r: 1000, n: 0, hist: [] };
-  const opp = botObj().r; const score = res === '1/2-1/2' ? .5 : (res === '1-0') === (P.me === 'w') ? 1 : 0;
+  const opp = P.mode === 'bot' ? botObj().r : P.online.oppR; const score = res === '1/2-1/2' ? .5 : (res === '1-0') === (P.me === 'w') ? 1 : 0;
   const exp = 1 / (1 + Math.pow(10, (opp - s.elo.r) / 400)); const k = s.elo.n < 10 ? 40 : 24;
   const d = Math.round(k * (score - exp)); s.elo.r += d; s.elo.n++; s.elo.hist.push({ t: Date.now(), r: s.elo.r, opp, score }); s.elo.hist = s.elo.hist.slice(-200);
   P.eloDelta = d; K.save();
 }
 function showRatings() {
   const el = $('#overRatings'); if (!el) return;
-  if (P.mode !== 'bot') { el.hidden = true; return; }
+  if (P.mode !== 'bot' && P.eloDelta == null) { el.hidden = true; return; }
   const acc = myAcc(); const gr = myGameRating(); const s = S(); const d = P.eloDelta;
   el.hidden = false;
-  el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '–'}</b><span>${gr == null ? (P.coachAcc.filter(x => x != null).length < 6 ? 'Too short to rate' : 'Calculating…') : `${A.ccAcc(acc)}% accuracy`}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${esc(botObj().n)} (${botObj().r})</span></div>`;
+  el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '–'}</b><span>${gr == null ? (P.coachAcc.filter(x => x != null).length < 6 ? 'Too short to rate' : 'Calculating…') : `${A.ccAcc(acc)}% accuracy`}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${P.mode === 'bot' ? `${esc(botObj().n)} (${botObj().r})` : esc((P.online && P.online.oppName) || 'your opponent')}</span></div>`;
 }
 $('#shareGame').onclick = async () => {
   if (!P.g) return; const n = names(); const h = P.g.history({ verbose: true }); const s = S(); const res = P.g.header().Result;
@@ -303,6 +306,7 @@ function endGame(res, text, remote) {
   P.over = true; P.result = text; P.g.header('Result', res);
   const n = names();
   upsertGame(res); A.queueReview(P.gid); applyElo(res); A.track('game_' + P.mode);
+  if (P.mode !== 'local' && ((res === '1-0' && P.me === 'w') || (res === '0-1' && P.me === 'b'))) A.addXP && A.addXP(P.mode === 'bot' ? 10 + Math.round(botObj().r / 100) : 25, 'win');
   K.save(); A.sound('end');
   if (P.mode === 'online' && !remote) pushOnline();
   $('#overBox').hidden = false; $('#overText').textContent = text;
@@ -314,7 +318,7 @@ function endGame(res, text, remote) {
 function upsertGame(res) {
   if (!P.g || !P.gid) return; const s = S(); const n = names();
   P.g.header('Result', res || '*');
-  const rec = { id: P.gid, pgn: P.g.pgn(), date: A.today(), white: n.w, black: n.b, result: res || '*', src: P.mode, me: P.mode === 'local' ? null : P.me, rev: 0 };
+  const rec = { id: P.gid, pgn: P.g.pgn(), date: A.today(), white: n.w, black: n.b, result: res || '*', src: P.mode, me: P.mode === 'local' ? null : P.me, rev: 0, bot: P.mode === 'bot' ? botObj().id : undefined };
   const i = s.games.findIndex(g => g.id === P.gid); if (i >= 0) s.games[i] = rec; else s.games.push(rec);
 }
 function persistLive() { if (P.g && !P.over && P.mode !== 'local' && P.g.history().length >= 10) { upsertGame(null); K.save(); } }
@@ -358,7 +362,7 @@ $('#resignBtn').onclick = () => {
   if (P.mode === 'local') { const c = P.g.turn(); endGame(c === 'w' ? '0-1' : '1-0', `${c === 'w' ? 'White' : 'Black'} resigned`); }
   else endGame(P.me === 'w' ? '0-1' : '1-0', P.mode === 'online' ? `${P.me === 'w' ? 'White' : 'Black'} resigned` : 'You resigned');
 };
-function newGame() { saveUnfinished(); leaveOnline(); P.g = null; P.over = false; $('#setup').hidden = false; $('#ingame').hidden = true; $('#hostBox').hidden = true; pb.set(K.START); render(); renderSetup(); }
+function newGame() { saveUnfinished(); stopSeek(); leaveOnline(); P.g = null; P.over = false; $('#setup').hidden = false; $('#ingame').hidden = true; $('#hostBox').hidden = true; pb.set(K.START); render(); renderSetup(); }
 $('#newBtn').onclick = newGame; $('#newBtn2').onclick = newGame;
 $('#rematchBtn').onclick = () => {
   if (P.mode === 'online') { if (P.online && P.online.role === 'host') { P.online.round = (P.online.round || 0) + 1; P.online.hostColor = P.online.hostColor === 'w' ? 'b' : 'w'; startGame({ color: P.online.hostColor, tc: P.online.tc }); P.online.started = true; pushOnline(); } else A.toast('Ask the host to start a rematch'); return; }
@@ -382,7 +386,7 @@ async function joinRoom(code) {
 }
 function myState() {
   const o = P.online; const nm = (S().name || 'Player').split(',')[0].trim() || 'Player';
-  return { k: 'ks', role: o.role, name: nm, code: o.code, hostColor: o.hostColor, tc: o.tc, round: o.round || 0, started: !!o.started, pgn: P.g ? P.g.pgn() : '', ply: P.g ? P.g.history().length : 0, clocks: P.clocks ? { w: Math.round(P.clocks.w), b: Math.round(P.clocks.b) } : null, result: P.over ? (P.g.header().Result || '') : '', resultText: P.over ? P.result : '', t: Date.now() };
+  return { k: 'ks', role: o.role, name: nm, r: myRating(), code: o.code, hostColor: o.hostColor, tc: o.tc, round: o.round || 0, started: !!o.started, pgn: P.g ? P.g.pgn() : '', ply: P.g ? P.g.history().length : 0, clocks: P.clocks ? { w: Math.round(P.clocks.w), b: Math.round(P.clocks.b) } : null, result: P.over ? (P.g.header().Result || '') : '', resultText: P.over ? P.result : '', t: Date.now() };
 }
 function pushOnline() { if (!gr || !P.online) return; const st = myState(); try { gr.presence(st); } catch (e) { } try { gr.emit('st', st); } catch (e) { } }
 setInterval(() => { if (gr && P.online) { try { gr.presence(myState()); } catch (e) { } } }, 4000);
@@ -390,7 +394,7 @@ function onPeers(peers) {
   const o = P.online; if (!o) return;
   const others = peers.filter(p => !isYou(p)).map(peerState).filter(Boolean);
   const opp = others.find(s => s.role !== o.role);
-  o.oppName = opp ? opp.name : o.oppName;
+  if (opp) { o.oppName = opp.name + (opp.r ? ` (${opp.r})` : ''); if (opp.r && o.ranked) o.oppR = opp.r; }
   if (o.role === 'host') {
     if (opp && !o.started) { o.started = true; startGame({ color: o.hostColor, tc: o.tc }); pushOnline(); A.toast(`${opp.name} joined`); }
   }
@@ -416,6 +420,36 @@ function applyRemote(st) {
   else if (!P.over) checkEnd();
 }
 function leaveOnline() { if (gr) { try { gr.leave(); } catch (e) { } } gr = null; P.online = null; }
+/* ---------- matchmaking: play someone new (web build only) ---------- */
+function myRating() { const s = S(); return s.elo ? s.elo.r : Math.round(s.puz.r || 1000); }
+let lob = null, seekT = null;
+function stopSeek() {
+  const l = lob; lob = null; clearInterval(seekT); seekT = null;
+  if (l) { l.onclose = null; try { if (l.readyState === 1) l.send('{"t":"cancel"}'); l.close(); } catch (e) { } }
+  $('#seekBox').hidden = true; $('#seekBtn').hidden = false;
+}
+A.findOpponent = () => {
+  if (!window.NM_WEB) { A.toast('Matchmaking works on nextmove.gg'); return; }
+  if (!TCS[P.tc]) { P.tc = '5+3'; renderSetup(); }
+  const tc = P.tc, r = myRating(), name = (S().name || '').split(',')[0].trim() || (window.NM_USER && window.NM_USER()) || 'Guest';
+  stopSeek(); leaveOnline(); const t0 = Date.now();
+  const ws = lob = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/api/lobby');
+  const seek = () => { if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'seek', tc, r, name })); };
+  ws.onopen = seek;
+  ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (er) { return; } if (m.t === 'match' && lob === ws) { stopSeek(); startMatch(m); } };
+  ws.onclose = () => { if (lob === ws) { stopSeek(); A.toast('Lost the connection to matchmaking. Try again.'); } };
+  seekT = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); $('#seekTime').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; if (s && s % 6 === 0) seek(); }, 1000);
+  $('#seekTc').textContent = tc; $('#seekTime').textContent = '0:00'; $('#seekBox').hidden = false; $('#seekBtn').hidden = true;
+};
+async function startMatch(m) {
+  if (!(await joinRoom(m.code))) return;
+  P.online = { role: m.role, code: m.code, hostColor: m.role === 'host' ? m.color : (m.color === 'w' ? 'b' : 'w'), tc: m.tc, round: 0, started: false, oppName: `${m.opp.name} (${m.opp.r})`, oppR: m.opp.r, ranked: true };
+  try { gr.presence(myState()); } catch (e) { }
+  A.toast(`Opponent found: ${m.opp.name} (${m.opp.r})`);
+  setTimeout(() => { const o = P.online; if (o && o.code === m.code && !o.started) { A.toast('Your opponent didn’t connect. Searching again…'); leaveOnline(); A.findOpponent(); } }, 15000);
+}
+$('#seekBtn').onclick = () => A.findOpponent();
+$('#seekCancel').onclick = () => stopSeek();
 $('#hostBtn').onclick = async () => {
   let code = ''; for (let i = 0; i < 5; i++) code += CODE_CH[Math.floor(Math.random() * CODE_CH.length)];
   const hostColor = P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color;

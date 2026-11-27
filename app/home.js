@@ -62,6 +62,7 @@ function renderToday() {
     cards.push(`<button class="tcard${due ? ' hot' : ''}" data-train="drills"><span class="big" data-n="${due}">${due}</span><span><small>Mistake drills</small><b>${due ? 'Due now' : s.drills.length ? 'All caught up' : 'Play a game to fill these'}</b></span></button>`);
     const rv = s.reviews.filter(r => r.me).slice(-1)[0];
     if (rv) { const acc = A.ccAcc(rv.me === 'w' ? rv.accW : rv.accB); cards.push(`<a class="tcard" href="#review"><span class="big" data-n="${acc ?? 0}">${acc ?? '–'}</span><span><small>Last game accuracy</small><b>vs ${esc(rv.me === 'w' ? rv.black : rv.white)}</b></span></a>`); }
+    if (A.levelInfo) { const L = A.levelInfo(), C2 = 2 * Math.PI * 22; cards.push(`<a class="tcard" href="#progress"><svg viewBox="0 0 52 52" class="ring"><circle cx="26" cy="26" r="22" class="rb"/><circle cx="26" cy="26" r="22" class="rf" style="stroke:#f1cf86" stroke-dasharray="${C2}" stroke-dashoffset="${C2 * (1 - L.into / L.need)}"/><text x="26" y="31" text-anchor="middle">${L.L}</text></svg><span><small>Level ${L.L} · ${esc(L.title)}</small><b>${L.need - L.into} XP to level ${L.L + 1}</b></span></a>`); }
     if (s.elo) cards.push(`<a class="tcard" href="#play"><span class="big" data-n="${s.elo.r}">${s.elo.r}</span><span><small>Play rating</small><b>${s.elo.n} game${s.elo.n === 1 ? '' : 's'} vs bots</b></span></a>`);
     const h = s.puz.hist; const wk = h.find(x => x.t > Date.now() - 7 * A.DAY); const dr = wk ? Math.round(s.puz.r - wk.r) : 0;
     cards.push(`<button class="tcard" data-train="tactics"><span class="big" data-n="${Math.round(s.puz.r)}">${Math.round(s.puz.r)}</span><span><small>Puzzle rating</small><b>${dr ? `${dr > 0 ? '+' : ''}${dr} this week` : 'Solve to climb'}</b></span></button>`);
@@ -85,9 +86,9 @@ function renderTrain() {
     ['open', 'i-book', 'Opening courses', 'Main lines up to 20 moves, explained.', `${crs}/${A.COURSES.length}`],
     ['gambits', 'i-swords', 'Gambit lab', 'Sharp gambits and the traps that win games.', `${gam}/${A.GAMB.length}`],
     ['end', 'i-crown', 'Endgames', 'Mates, pawn and rook endings.', A.EG.length ? `${eg}/${A.EG.length}` : ''],
-    ['vision', 'i-grid', 'Board vision', 'Name squares fast from either side.', '']
+    (s.mypuz || []).length ? ['mine', 'i-knight', 'Your game puzzles', 'Punish the mistakes your opponents made against you.', `${s.mypuz.filter(p => p.solved).length}/${s.mypuz.length}`] : ['vision', 'i-grid', 'Board vision', 'Name squares fast from either side.', '']
   ];
-  const ART = { drills: 'ill-drills', tactics: 'ill-puzzle', rush: 'ill-rush', open: 'ill-open', gambits: 'ill-gambit', end: 'ill-end', vision: 'ill-vision' };
+  const ART = { mine: 'ill-review', drills: 'ill-drills', tactics: 'ill-puzzle', rush: 'ill-rush', open: 'ill-open', gambits: 'ill-gambit', end: 'ill-end', vision: 'ill-vision' };
   $('#homeTrain').innerHTML = T.map(([m, ic, t, d, stat, feat]) => `<button class="tile${feat ? ' feature' : ''}" data-train="${m}"><svg class="tart"><use href="#${ART[m]}"/></svg><b>${t}</b><small>${d}</small>${stat !== '' ? `<em>${esc(String(stat))}</em>` : ''}</button>`).join('');
 }
 
@@ -150,6 +151,8 @@ function renderBots() {
 }
 $('#homeBots').onclick = e => { const b = e.target.closest('[data-bot]'); if (b) A.quickBot(+b.dataset.bot); };
 $('#homeFriend').onclick = () => A.playOnline();
+if (window.NM_WEB) { $('#homeOnline').hidden = false; $('#homeOnline').closest('.modes').classList.add('four'); }
+$('#homeOnline').onclick = () => A.playRandom();
 document.querySelectorAll('[data-mode-go]').forEach(b => b.onclick = () => A.playMode(b.dataset.modeGo));
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-train]'); if (t && A.startTrain) { e.preventDefault(); A.startTrain(t.dataset.train); return; }

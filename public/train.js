@@ -22,6 +22,7 @@ function renderHub() {
   $('#hDrills').textContent = s.drills.length ? `${due} due` : 'empty';
   $('#hConv').textContent = s.conv.length ? `${s.conv.filter(c => s.eg['c:' + c.id]).length}/${s.conv.length}` : 'none yet';
   $('#hTactics').textContent = Math.round(s.puz.r);
+  { const mp = s.mypuz || []; $('#hMine').textContent = mp.length ? `${mp.filter(p => p.solved).length}/${mp.length}` : 'none yet'; }
   $('#hStreak').textContent = s.best.streak ? `best ${s.best.streak}` : '';
   $('#hRush').textContent = s.best.rush ? `best ${s.best.rush}` : '';
   $('#hGambit').textContent = A.GAMB.length ? `${A.GAMB.filter(g => s.op[g.name]).length}/${A.GAMB.length}` : '';
@@ -31,7 +32,7 @@ function renderHub() {
   void mastered;
 }
 $('#hub').onclick = e => { const b = e.target.closest('[data-start]'); if (b) start(b.dataset.start); };
-function start(m) { ({ drills: () => startDrills(), conv: startConv, tactics: startTactics, streak: () => startRun('streak'), rush: () => startRun('rush'), gambits: startGambits, open: startOpenings, end: startEndgames, vision: startVision })[m](); }
+function start(m) { ({ drills: () => startDrills(), mine: startMine, conv: startConv, tactics: startTactics, streak: () => startRun('streak'), rush: () => startRun('rush'), gambits: startGambits, open: startOpenings, end: startEndgames, vision: startVision })[m](); }
 A.startTrain = start;
 
 /* ---------- session chrome ---------- */
@@ -168,10 +169,21 @@ function themeChips() {
   $('#tList').innerHTML = `<div class="chips">${themes.map(t => `<button class="chip${t === T.theme ? ' on' : ''}" data-th="${t}">${t}</button>`).join('')}</div>`;
   $('#tList').onclick = e => { const b = e.target.closest('[data-th]'); if (b) { T.theme = b.dataset.th; startTactics(); } };
 }
+function pickMine() {
+  // unsolved first, then ones you missed in the game, then the least recently tried
+  const list = (S().mypuz || []).slice().sort((a, b) => (a.solved > 0) - (b.solved > 0) || (a.found - b.found) || ((a.last_t || 0) - (b.last_t || 0)));
+  const p = list.find(x => x !== T.p) || list[0]; return p && Object.assign(p, { mine: true });
+}
+function startMine() {
+  open('mine', 'Your game puzzles'); T.run = null; T.pick = pickMine;
+  const n = (S().mypuz || []).length;
+  if (!n) { prompt('No game puzzles yet', 'Play a few games. Every time your opponent makes a mistake, the position comes back here as a puzzle.'); tools({}); return; }
+  puzzle(pickMine());
+}
 function startTactics() {
   open('tactics', 'Rated puzzles'); themeChips();
   if (!A.PUZ.length) { prompt('Puzzles are loading…'); return; }
-  T.run = null; puzzle(pickRated());
+  T.run = null; T.pick = pickRated; puzzle(pickRated());
 }
 function startRun(kind) {
   open(kind, kind === 'rush' ? 'Puzzle rush' : 'Puzzle streak');
@@ -210,7 +222,7 @@ function puzzle(p) {
   T.p = p; T.step = 0; T.alt = false; T.failed = false; T.hintLvl = 0; T.lock = true;
   const color = p.fen.split(' ')[1]; T.color = color; tb.orient = color;
   const isRun = !!T.run;
-  prompt(`${color === 'w' ? 'White' : 'Black'} to move`, isRun ? `Puzzle ${T.run.n + 1} · rated ${p.rating}` : `Find the strongest move. Rated ${p.rating} · you ${Math.round(S().puz.r)}`);
+  prompt(`${color === 'w' ? 'White' : 'Black'} to move`, p.mine ? `Move ${p.move} of ${esc(p.src)}. Your opponent just slipped${p.found ? '. You found it in the game. Can you again?' : ' and you missed the punishment. Find it now.'}` : isRun ? `Puzzle ${T.run.n + 1} · rated ${p.rating}` : `Find the strongest move. Rated ${p.rating} · you ${Math.round(S().puz.r)}`);
   $('#tFb').innerHTML = '';
   tools(isRun ? (T.run.kind === 'rush' ? { skip: false } : {}) : { hint: true, show: true, skip: true });
   // show the opponent's last move first when we have it
@@ -218,7 +230,7 @@ function puzzle(p) {
   else { show(p.fen); T.lock = false; T.movable = color; }
   T.hint = () => { fail(); if (T.hintLvl === 0) fb('', `Theme: ${esc(p.theme)}`); hintFor(T.fen); };
   T.show = () => solution();
-  T.skip = () => puzzle(pickRated());
+  T.skip = () => puzzle(T.pick());
   T.onMove = async (u, c) => {
     const fen = T.fen; T.lock = true; tb.set(c.fen(), { last: u, anim: !tb.lastWasDrag });
     let ok = false, alt = false, j = null;
@@ -252,6 +264,7 @@ function puzzle(p) {
 }
 function fail() {
   if (T.failed || T.run) return; T.failed = true;
+  if (T.p.mine) { T.p.tries++; K.save(); return; }
   const s = S(); const p = T.p; const e = 1 / (1 + 10 ** ((p.rating - s.puz.r) / 400)); s.puz.r += 24 * (0 - e);
   s.puz.done[p.id] = 0; s.puz.hist.push({ t: Date.now(), r: Math.round(s.puz.r), ok: 0 }); A.tick(); K.save();
 }
@@ -259,10 +272,11 @@ function solved(fen, u) {
   const s = S(); const p = T.p; T.lock = true; A.sound('good');
   if (T.run) { T.run.n++; A.tick(); K.save(); runMeta(); if (T.run.kind === 'rush') $('#tTitle').textContent = `Rush · ${T.run.n}`; else $('#tTitle').textContent = `Streak · ${T.run.n}`; setTimeout(() => nextRun(), 500); return; }
   let delta = 0;
+  if (p.mine) { p.tries++; if (!T.failed) p.solved++; p.last_t = Date.now(); A.tick(); A.track('puzzle'); K.save(); fb('ok', T.failed ? 'Solved' : 'Solved first try', [K.describeBest(p.fen, { move: p.sol[0], pv: p.sol }).text, `From your game ${esc(p.src)}.`], ''); tools({ next: true }); T.next = () => puzzle(T.pick()); return; }
   A.track('puzzle'); if (!T.failed) { const e = 1 / (1 + 10 ** ((p.rating - s.puz.r) / 400)); delta = 24 * (1 - e); s.puz.r += delta; s.puz.done[p.id] = 1; s.puz.hist.push({ t: Date.now(), r: Math.round(s.puz.r), ok: 1 }); A.tick(); K.save(); }
   const db = K.describeBest(p.fen, { move: p.sol[0], pv: p.sol });
   fb('ok', T.failed ? 'Solved (no rating change)' : `Solved · +${Math.round(delta)}`, [`Theme: ${p.theme}.`, db.text, K.plainMode() ? '' : `Line: ${K.pvSan(p.fen, p.sol, 8)}`], '', db.shows, () => show(fen, { last: u }));
-  tools({ next: true }); T.next = () => puzzle(pickRated()); A.renderMe();
+  tools({ next: true }); T.next = () => puzzle(T.pick()); A.renderMe();
 }
 async function solution() {
   const p = T.p; fail(); T.lock = true;
@@ -270,7 +284,7 @@ async function solution() {
   const db = K.describeBest(p.fen, { move: p.sol[0], pv: p.sol });
   fb('', 'Solution', [db.text, K.plainMode() ? '' : `Line: ${K.pvSan(p.fen, p.sol, 8)}`], '', db.shows);
   for (const u of p.sol) { await K.sleep(650); if (T.p !== p) return; const m = K.mv(c, u); show(c.fen(), { last: u, anim: true }); A.moveSound(m, c); }
-  tools({ next: true }); T.next = () => puzzle(pickRated());
+  tools({ next: true }); T.next = () => puzzle(T.pick());
 }
 
 /* ---------- endgames & conversion ---------- */
