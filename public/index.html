@@ -487,6 +487,8 @@ body[data-bg=sunrise] #bgfx::before{background:url(bg/sunrise.jpg) center/cover}
 body[data-bg=ice] #bgfx::before{background:url(bg/ice.jpg) center/cover}
 body[data-bg=tournament] #bgfx::after,body[data-bg=bishop] #bgfx::after,body[data-bg=marble] #bgfx::after,body[data-bg=sunrise] #bgfx::after,body[data-bg=ice] #bgfx::after{background:linear-gradient(90deg,rgba(6,8,18,.55),rgba(6,8,18,.25) 45%,rgba(6,8,18,.6)),linear-gradient(rgba(6,8,18,.25),rgba(6,8,18,.65))}
 body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=sunrise],body[data-bg=ice]{background:#06070d}
+/* boards nobody moves pieces on must let the page scroll on phones */
+#heroBd.board{touch-action:pan-y pinch-zoom;cursor:pointer}
 </style>
 </head>
 <body>
