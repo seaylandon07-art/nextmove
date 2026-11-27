@@ -77,6 +77,7 @@ function addDrill(i, R = RS) {
   return true;
 }
 function finish(R = RS) {
+  if (R === RS) A.track('review');
   const sum = summary(R); const s = S(); const key = R.fens[R.fens.length - 1] + '|' + R.moves.length;
   if (s.reviews.some(r => r.key === key)) return;
   if (R.gid) s.reviews = s.reviews.filter(r => r.gid !== R.gid);
@@ -255,7 +256,7 @@ $('#impForm').onsubmit = async e => {
   try {
     const r = await fetch(`/api/import?site=${IMP.site}&user=${encodeURIComponent(user)}`); const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Could not load games.');
-    IMP.games = d.games || []; S().imp = { site: IMP.site, user }; K.save();
+    IMP.games = d.games || []; S().imp = { site: IMP.site, user }; K.save(); A.track('import');
     if (!IMP.games.length) $('#impOut').innerHTML = '<p class="small mute" style="margin-top:10px">No recent standard games found for that player.</p>'; else renderImp();
   } catch (err) { $('#impOut').innerHTML = `<p class="small" style="margin-top:10px;color:var(--no)">${esc(err.message)}</p>`; }
   finally { $('#impBtn').disabled = false; }

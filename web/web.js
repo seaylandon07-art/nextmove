@@ -55,6 +55,13 @@
     }
   };
 
+  // offline app shell + install prompt
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => { }));
+  window.NM_INSTALL = null;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.NM_INSTALL = e; window.A && A.refreshInstall && A.refreshInstall(); });
+  addEventListener('appinstalled', () => { window.NM_INSTALL = null; window.NM_TRACK && window.NM_TRACK('install'); window.A && A.refreshInstall && A.refreshInstall(); });
+  window.NM_TRACK = k => { try { fetch('/api/ev', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k }), keepalive: true }).catch(() => { }); } catch (e) { } };
+  try { if (!sessionStorage.getItem('nm-v')) { sessionStorage.setItem('nm-v', '1'); window.NM_TRACK('visit'); } } catch (e) { }
   window.claude = {
     use: async name => {
       if (name === 'db') { await ready; return user ? db : null; }
@@ -66,10 +73,21 @@
 
   /* ---------- account dialog ---------- */
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const head = t => `<div class="ph"><h2 id="acctTitle">${t}</h2><button class="btn quiet sp" data-close-acct aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>`;
+  function codeHTML(code, first) {
+    return `${head(first ? 'Save your recovery code' : 'Your new recovery code')}
+      <section><p>${first ? 'Your account is ready. ' : ''}If you ever forget your password, this code is the only way back into your account. Save it somewhere safe, like a password manager or a screenshot.</p>
+      <p class="code" style="font-size:30px;margin:14px 0;user-select:all">${esc(code)}</p>
+      <div class="row"><button class="btn sec" id="rcCopy" type="button">Copy</button><button class="btn sec" id="rcSave" type="button">Download</button></div>
+      <p class="small mute" style="margin-top:10px">${first ? '' : 'Your old code no longer works. '}Each code works once; after you use it you'll get a new one.</p></section>
+      <section><label class="chk"><input type="checkbox" id="rcOk"> I've saved my recovery code</label><div class="row" style="margin-top:10px"><button class="btn" id="rcDone" disabled>Continue</button></div></section>`;
+  }
   function dialogHTML() {
-    if (user) return `<div class="ph"><h2>Account</h2><button class="btn quiet sp" data-close-acct aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+    if (user) return `${head('Account')}
       <section><p>Signed in as <b>${esc(user.username)}</b>.</p><p class="small mute" style="margin-top:6px">Your games, drills and ratings sync to every device you sign in on.</p></section>
-      <section class="row"><button class="btn sec" id="acctOut">Sign out</button></section>`;
+      <section><h3>Recovery code</h3><p class="small mute">${user.hasRecovery ? 'You have a recovery code. Lost it? Make a new one; the old one stops working.' : 'You don’t have a recovery code yet. Without one, a forgotten password means a lost account.'}</p><div class="row" style="margin-top:8px"><button class="btn ${user.hasRecovery ? 'sec' : ''}" id="rcNew">${user.hasRecovery ? 'Make a new code' : 'Create my recovery code'}</button></div></section>
+      <section><h3>Email (optional)</h3><form id="emForm" class="row" style="flex-wrap:nowrap"><input type="text" id="emIn" inputmode="email" autocomplete="email" placeholder="you@example.com" value="${esc(user.email || '')}"><button class="btn sec" type="submit">Save</button></form><p class="small mute" style="margin-top:6px">Only used to help you get back into your account. Password resets by email are coming; until then, use your recovery code.</p></section>
+      <section class="row">${user.admin ? '<a class="btn sec" href="/stats.html">Site stats</a>' : ''}<a class="btn quiet" href="/privacy.html">Privacy</a><a class="btn quiet" href="/terms.html">Terms</a><button class="btn sec" id="acctOut" style="margin-left:auto">Sign out</button></section>`;
     return `<div class="ph"><h2 id="acctTitle">Sign in</h2><button class="btn quiet sp" data-close-acct aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
       <section><p class="small mute">Sign in to keep your progress on every device and play friends online. Without an account, progress stays in this browser.</p></section>
       <section><form id="acctForm" style="display:flex;flex-direction:column;gap:10px">
@@ -77,7 +95,28 @@
         <label class="f">Password<input type="password" id="acctPass" autocomplete="current-password" minlength="8" required></label>
         <p class="small" id="acctErr" style="color:var(--no)" hidden></p>
         <div class="row"><button class="btn" type="submit" id="acctGo">Sign in</button><button class="btn quiet" type="button" id="acctSwap">Create an account instead</button></div>
+        <button class="btn quiet" type="button" id="acctForgot" style="align-self:flex-start;padding:0">Forgot your password?</button>
+        <p class="small mute" id="acctLegal" hidden>By creating an account you agree to the <a href="/terms.html" style="color:var(--acc2)">terms</a> and <a href="/privacy.html" style="color:var(--acc2)">privacy policy</a>.</p>
       </form></section>`;
+  }
+  function recoverHTML() {
+    return `${head('Get back into your account')}
+      <section><p class="small mute">Enter your username, the recovery code you saved when you made your account, and a new password.</p></section>
+      <section><form id="recForm" style="display:flex;flex-direction:column;gap:10px">
+        <label class="f">Username<input type="text" id="recUser" autocomplete="username" maxlength="20" required></label>
+        <label class="f">Recovery code<input type="text" id="recCode" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKLM-NPQR" required></label>
+        <label class="f">New password<input type="password" id="recPass" autocomplete="new-password" minlength="8" required></label>
+        <p class="small" id="recErr" style="color:var(--no)" hidden></p>
+        <div class="row"><button class="btn" type="submit" id="recGo">Reset password</button><button class="btn quiet" type="button" id="recBack">Back to sign in</button></div>
+        <p class="small mute">No recovery code? Email <a href="mailto:hello@nextmove.gg" style="color:var(--acc2)">hello@nextmove.gg</a> from the address on your account, if you added one.</p>
+      </form></section>`;
+  }
+  function showCode(el, code, first) {
+    const box = el.querySelector('.sheetdlg'); box.innerHTML = codeHTML(code, first);
+    box.querySelector('#rcCopy').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(code).then(() => window.A && A.toast('Recovery code copied')); };
+    box.querySelector('#rcSave').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([`NextMove recovery code for ${user ? user.username : ''}\n\n${code}\n\nUse it at nextmove.gg → Sign in → Forgot your password?\n`], { type: 'text/plain' })); a.download = 'nextmove-recovery-code.txt'; a.click(); };
+    box.querySelector('#rcOk').onchange = e => { box.querySelector('#rcDone').disabled = !e.target.checked; };
+    box.querySelector('#rcDone').onclick = () => { el.hidden = true; };
   }
   let mode = 'login';
   function openDialog() {
@@ -88,19 +127,40 @@
   function bind(el) {
     const out = el.querySelector('#acctOut');
     if (out) out.onclick = async () => { try { await api('/logout', { method: 'POST' }); } catch (e) { } setToken(null); location.reload(); };
+    const rcNew = el.querySelector('#rcNew');
+    if (rcNew) rcNew.onclick = async () => { rcNew.disabled = true; try { const d = await api('/recovery', { method: 'POST' }); user.hasRecovery = true; showCode(el, d.recoveryCode, false); } catch (e) { rcNew.disabled = false; window.A && A.toast(e.message); } };
+    const em = el.querySelector('#emForm');
+    if (em) em.onsubmit = async e => { e.preventDefault(); try { const d = await api('/email', { method: 'PUT', body: JSON.stringify({ email: el.querySelector('#emIn').value }) }); user.email = d.email; window.A && A.toast(d.email ? 'Email saved' : 'Email removed'); } catch (ex) { window.A && A.toast(ex.message); } };
+    const forgot = el.querySelector('#acctForgot');
+    if (forgot) forgot.onclick = () => {
+      const box = el.querySelector('.sheetdlg'); box.innerHTML = recoverHTML();
+      box.querySelector('#recUser').value = el.querySelector('#acctUser') ? el.querySelector('#acctUser').value : '';
+      box.querySelector('#recBack').onclick = () => { box.innerHTML = dialogHTML(); bind(el); };
+      box.querySelector('#recForm').onsubmit = async e => {
+        e.preventDefault(); const err = box.querySelector('#recErr'); err.hidden = true; const go = box.querySelector('#recGo'); go.disabled = true;
+        try {
+          const d = await api('/recover', { method: 'POST', body: JSON.stringify({ username: box.querySelector('#recUser').value, code: box.querySelector('#recCode').value, password: box.querySelector('#recPass').value }) });
+          setToken(d.token); user = d.user; user.hasRecovery = true; ready = Promise.resolve(user);
+          await K.initSync(); if (window.A) A.refresh(); renderBadge();
+          showCode(el, d.recoveryCode, false); window.A && A.toast(`Password reset. Welcome back, ${user.username}`);
+        } catch (ex) { err.textContent = ex.message; err.hidden = false; go.disabled = false; }
+      };
+    };
     const form = el.querySelector('#acctForm'); if (!form) return;
     const swap = el.querySelector('#acctSwap');
-    swap.onclick = () => { mode = mode === 'login' ? 'signup' : 'login'; el.querySelector('#acctTitle').textContent = mode === 'login' ? 'Sign in' : 'Create an account'; el.querySelector('#acctGo').textContent = mode === 'login' ? 'Sign in' : 'Create account'; swap.textContent = mode === 'login' ? 'Create an account instead' : 'I already have an account'; el.querySelector('#acctPass').autocomplete = mode === 'login' ? 'current-password' : 'new-password'; };
+    swap.onclick = () => { mode = mode === 'login' ? 'signup' : 'login'; el.querySelector('#acctLegal').hidden = mode === 'login'; el.querySelector('#acctForgot').hidden = mode !== 'login'; el.querySelector('#acctTitle').textContent = mode === 'login' ? 'Sign in' : 'Create an account'; el.querySelector('#acctGo').textContent = mode === 'login' ? 'Sign in' : 'Create account'; swap.textContent = mode === 'login' ? 'Create an account instead' : 'I already have an account'; el.querySelector('#acctPass').autocomplete = mode === 'login' ? 'current-password' : 'new-password'; };
     form.onsubmit = async e => {
       e.preventDefault();
       const err = el.querySelector('#acctErr'); err.hidden = true;
       const go = el.querySelector('#acctGo'); go.disabled = true;
       try {
         const d = await api(mode === 'login' ? '/login' : '/signup', { method: 'POST', body: JSON.stringify({ username: el.querySelector('#acctUser').value, password: el.querySelector('#acctPass').value }) });
-        setToken(d.token); user = d.user; ready = Promise.resolve(user);
+        setToken(d.token); user = d.user; try { user = (await api('/me')).user; } catch (e2) { } ready = Promise.resolve(user);
         const s = K.S(); if (!s.name) { s.name = user.username; K.save(); }
         await K.initSync(); if (window.A) A.refresh();
-        el.hidden = true; renderBadge(); if (window.A) A.toast(mode === 'login' ? `Welcome back, ${user.username}` : `Account created — you're signed in`);
+        renderBadge();
+        if (mode === 'signup' && d.recoveryCode) { user.hasRecovery = true; showCode(el, d.recoveryCode, true); return; }
+        el.hidden = true; if (window.A) A.toast(`Welcome back, ${user.username}`);
       } catch (ex) { err.textContent = ex.message; err.hidden = false; }
       go.disabled = false;
     };

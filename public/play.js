@@ -302,7 +302,7 @@ function endGame(res, text, remote) {
   if (P.over) return;
   P.over = true; P.result = text; P.g.header('Result', res);
   const n = names();
-  upsertGame(res); A.queueReview(P.gid); applyElo(res);
+  upsertGame(res); A.queueReview(P.gid); applyElo(res); A.track('game_' + P.mode);
   K.save(); A.sound('end');
   if (P.mode === 'online' && !remote) pushOnline();
   $('#overBox').hidden = false; $('#overText').textContent = text;

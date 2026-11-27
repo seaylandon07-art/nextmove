@@ -138,7 +138,7 @@ async function whatIf(d, goodU) {
 }
 function grade(ok) {
   const d = S().drills.find(x => x.id === T.d.id); if (!d) return;
-  d.n++; A.tick(); if (ok) { d.ok++; d.box = Math.min(5, d.box + 1); d.due = Date.now() + BOX_DAYS[d.box] * A.DAY; } else { d.box = 0; d.due = Date.now() + 10 * 60e3; }
+  d.n++; A.tick(); A.track('drill'); if (ok) { d.ok++; d.box = Math.min(5, d.box + 1); d.due = Date.now() + BOX_DAYS[d.box] * A.DAY; } else { d.box = 0; d.due = Date.now() + 10 * 60e3; }
   K.save();
 }
 async function drillReveal() {
@@ -259,7 +259,7 @@ function solved(fen, u) {
   const s = S(); const p = T.p; T.lock = true; A.sound('good');
   if (T.run) { T.run.n++; A.tick(); K.save(); runMeta(); if (T.run.kind === 'rush') $('#tTitle').textContent = `Rush · ${T.run.n}`; else $('#tTitle').textContent = `Streak · ${T.run.n}`; setTimeout(() => nextRun(), 500); return; }
   let delta = 0;
-  if (!T.failed) { const e = 1 / (1 + 10 ** ((p.rating - s.puz.r) / 400)); delta = 24 * (1 - e); s.puz.r += delta; s.puz.done[p.id] = 1; s.puz.hist.push({ t: Date.now(), r: Math.round(s.puz.r), ok: 1 }); A.tick(); K.save(); }
+  A.track('puzzle'); if (!T.failed) { const e = 1 / (1 + 10 ** ((p.rating - s.puz.r) / 400)); delta = 24 * (1 - e); s.puz.r += delta; s.puz.done[p.id] = 1; s.puz.hist.push({ t: Date.now(), r: Math.round(s.puz.r), ok: 1 }); A.tick(); K.save(); }
   const db = K.describeBest(p.fen, { move: p.sol[0], pv: p.sol });
   fb('ok', T.failed ? 'Solved (no rating change)' : `Solved · +${Math.round(delta)}`, [`Theme: ${p.theme}.`, db.text, K.plainMode() ? '' : `Line: ${K.pvSan(p.fen, p.sol, 8)}`], '', db.shows, () => show(fen, { last: u }));
   tools({ next: true }); T.next = () => puzzle(pickRated()); A.renderMe();
@@ -416,7 +416,7 @@ function opPlay(line, color) {
 }
 function opDone() {
   const s = S(); const o = s.op[T.line.name] = s.op[T.line.name] || { reps: 0, clean: 0 };
-  o.reps++; if (T.clean) o.clean++; o.last = Date.now(); A.tick(); K.save(); A.sound('good');
+  o.reps++; if (T.clean) o.clean++; o.last = Date.now(); A.tick(); A.track('course'); K.save(); A.sound('good');
   const bot = A.botForMe();
   fb('ok', `${T.line.kind === 'trap' ? 'Trap sprung' : 'Line complete'}${T.clean ? ' — no mistakes' : ''}`, [T.line.note || '', `Drilled ${o.reps}× (${o.clean} clean). Now play the position out as a real game, or drill it again.`],
     `<div class="row" style="margin-top:8px">${T.g.game_over() ? '' : `<button class="btn" id="playOut">Play it out vs ${esc(bot.name)} (${bot.r})</button>`}<button class="btn sec" id="drillAgain">Drill again</button></div>`);

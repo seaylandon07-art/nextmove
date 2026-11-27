@@ -16,5 +16,6 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
   "triggers": { "crons": ["17 4 * * *"] },
+  "vars": { "ADMINS": "" },
   "observability": { "enabled": true }
 }

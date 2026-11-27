@@ -93,7 +93,7 @@ function renderTrain() {
 
 /* ---------- daily puzzle ---------- */
 const D = { p: null, i: 0, g: null, done: false, busy: false };
-const db = A.board($('#dpBd'), { movable: () => D.done || D.busy || !D.g ? null : D.g.turn(), legal: A.legalFor(() => D.g.fen()), onMove: (f, t, pr) => dailyMove(f, t, pr) });
+const db = A.board($('#dpBd'), { scroll: true, movable: () => D.done || D.busy || !D.g ? null : D.g.turn(), legal: A.legalFor(() => D.g.fen()), onMove: (f, t, pr) => dailyMove(f, t, pr) });
 function dpFb(kind, head, sub, extra = '') { $('#dpFb').innerHTML = `<div class="fb ${kind}"><b>${head}</b>${sub ? `<p>${sub}</p>` : ''}${extra}</div>`; }
 function setupDaily() {
   if (!A.PUZ.length) return;
@@ -156,7 +156,29 @@ document.addEventListener('click', e => {
   const sc = e.target.closest('[data-scroll]'); if (sc) $('#dpBd').scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
-function render() { renderToday(); renderTrain(); renderBots(); if (!D.p || D.p.id !== (S().daily || {}).id || (S().daily || {}).date !== A.today()) setupDaily(); }
+/* ---------- install the app + daily reminder ---------- */
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+A.refreshInstall = () => {
+  const s = S(); const card = $('#appCard'); if (!window.NM_WEB) { card.hidden = true; return; }
+  const canPrompt = !!window.NM_INSTALL, inApp = standalone();
+  card.hidden = !!s.appHide && !canPrompt;
+  $('#appInstall').hidden = !canPrompt;
+  $('#appTitle').textContent = inApp ? 'Never miss the daily puzzle' : 'Get the app';
+  $('#appText').textContent = inApp ? 'Add a daily reminder to your calendar so the puzzle and your drills are waiting for you.' : canPrompt ? 'Install NextMove on your home screen. It opens full screen, works offline and loads instantly.' : isIOS ? 'On iPhone: tap the Share button in Safari, then “Add to Home Screen”. It opens full screen and works offline.' : 'Add NextMove to your home screen from your browser menu. It opens full screen and works offline.';
+};
+$('#appInstall').onclick = async () => { const p = window.NM_INSTALL; if (!p) return; p.prompt(); const r = await p.userChoice.catch(() => null); window.NM_INSTALL = null; A.refreshInstall(); if (r && r.outcome === 'accepted') A.toast('Installed. Find NextMove on your home screen.'); };
+$('#appHide').onclick = () => { S().appHide = true; K.save(); $('#appCard').hidden = true; };
+$('#appRemind').onclick = () => {
+  // a calendar event that repeats daily at 6 PM local time, linking back to the daily puzzle
+  const d = new Date(); d.setHours(18, 0, 0, 0); if (d < new Date()) d.setDate(d.getDate() + 1);
+  const p2 = n => String(n).padStart(2, '0'); const local = x => `${x.getFullYear()}${p2(x.getMonth() + 1)}${p2(x.getDate())}T${p2(x.getHours())}${p2(x.getMinutes())}00`;
+  const end = new Date(d.getTime() + 15 * 60e3);
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//NextMove//Daily puzzle//EN', 'BEGIN:VEVENT', `UID:nextmove-daily-${Date.now()}@nextmove.gg`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`, `DTSTART:${local(d)}`, `DTEND:${local(end)}`, 'RRULE:FREQ=DAILY', 'SUMMARY:NextMove daily puzzle', 'DESCRIPTION:Today’s puzzle and your mistake drills are waiting: https://nextmove.gg', 'URL:https://nextmove.gg', 'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', 'DESCRIPTION:NextMove daily puzzle', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'nextmove-daily-puzzle.ics'; document.body.appendChild(a); a.click(); a.remove();
+  A.toast('Open the file to add a daily 6 PM reminder to your calendar. You can change the time there.');
+};
+function render() { renderToday(); A.refreshInstall(); renderTrain(); renderBots(); if (!D.p || D.p.id !== (S().daily || {}).id || (S().daily || {}).date !== A.today()) setupDaily(); }
 A.views.home = {
   enter() { render(); clearTimeout(H.t); H.t = setTimeout(heroStep, 900); },
   leave() { clearTimeout(H.t); },

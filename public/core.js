@@ -350,7 +350,7 @@ class Board {
   constructor(host, o = {}) {
     this.o = o; this.host = host; this.orient = 'w'; this.fen = START; this.sel = null; this.dests = [];
     this.last = null; this.arrows = []; this.badge = null; this.marks = {};
-    host.classList.add('board');
+    host.classList.add('board'); if (o.scroll) host.classList.add('scrl');   // phones: page scrolls unless you touch your own piece
     host.innerHTML = '<div class="sqs"></div><svg class="arw" viewBox="0 0 8 8" aria-hidden="true"></svg><div class="promo" hidden></div>';
     this.sqs = host.querySelector('.sqs'); this.svg = host.querySelector('.arw'); this.promo = host.querySelector('.promo');
     host.addEventListener('pointerdown', e => this.down(e));
@@ -405,6 +405,7 @@ class Board {
       const cl = ['sq', light ? 'l' : 'd'];
       if (this.last && (this.last.slice(0, 2) === s || this.last.slice(2, 4) === s)) cl.push('last');
       if (this.sel === s) cl.push('sel');
+      if (this.o.scroll && P[s] && this.canMove(s)) cl.push('mv');
       if (checkSq === s) cl.push('chk');
       if (this.marks[s]) cl.push(this.marks[s]);
       const um = this.uMarks && this.uMarks[s]; if (um) cl.push('umc');

@@ -9,7 +9,7 @@ const DAY = 864e5, GOAL = 12;
 const A = { S, $$, uid, today, DAY, GOAL, views: {}, PUZ: [], EG: [], GAMB: [], COURSES: [], sample: null };
 
 /* ---------- settings ---------- */
-const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green', mark: 'red', bg: 'midnight' };
+const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green', mark: 'red', bg: 'midnight', volume: .8, sstyle: 'wood' };
 const BGS = [['midnight', 'Midnight', 'radial-gradient(circle at 30% 0%,#1c2552,#0a0e1c 70%)'], ['royal', 'Club room', 'url(bg/royal.jpg) 60% 50%/cover'], ['spotlight', 'Spotlight', 'url(bg/arena.jpg) center/cover'], ['checkmate', 'Checkmate', 'url(bg/checkmate.jpg) 40% 50%/cover'], ['goldset', 'Gold set', 'url(bg/gold.jpg) center/cover'], ['neon', 'Neon knight', 'url(bg/neon.svg) center/cover'], ['tournament', 'Tournament hall', 'url(bg/tournament.jpg) center/cover'], ['bishop', 'Bishop', 'url(bg/bishop.jpg) 35% 50%/cover'], ['marble', 'Marble opening', 'url(bg/marble.jpg) center/cover'], ['sunrise', 'Sunrise', 'url(bg/sunrise.jpg) center/cover'], ['ice', 'Crystal', 'url(bg/ice.jpg) center/cover'], ['pieces', 'Pieces', ''], ['grid', 'Grid horizon', 'linear-gradient(transparent 45%,rgba(241,207,134,.25)),conic-gradient(rgba(241,207,134,.18) 25%,transparent 0 50%,rgba(241,207,134,.18) 0 75%,transparent 0) 0 0/16px 16px,#0a0e1c'], ['aurora', 'Aurora', 'radial-gradient(circle at 25% 30%,rgba(111,211,160,.45),transparent 50%),radial-gradient(circle at 75% 30%,rgba(150,120,255,.45),transparent 50%),radial-gradient(circle at 55% 85%,rgba(241,207,134,.35),transparent 50%),#0a0e1c'], ['stars', 'Night sky', 'radial-gradient(1px 1px at 10px 12px,#fff,transparent),radial-gradient(1px 1px at 40px 30px,#fff,transparent),radial-gradient(1px 1px at 70px 18px,#fff,transparent),radial-gradient(circle at 70% 0%,#1a1440,#05070f 70%)'], ['walnut', 'Walnut', 'repeating-linear-gradient(97deg,#2a1a10 0 4px,#32200f 4px 6px),#1a110b'], ['felt', 'Felt', 'radial-gradient(circle at 50% 30%,#1f5a40,#0b2a1e 75%)'], ['pure', 'Pure black', '#05060b']];
 const ARROWS = [['green', 'Green', '#4fcf8f'], ['gold', 'Champagne gold', '#e9b850'], ['blue', 'Blue', '#5b9dff'], ['red', 'Red', '#ff5a5a'], ['orange', 'Orange', '#f2a33a']];
 const MARKS = [['red', 'Red', '#ff5a5a'], ['green', 'Green', '#4fcf8f'], ['blue', 'Blue', '#5b9dff'], ['gold', 'Champagne gold', '#e9b850'], ['orange', 'Orange', '#f2a33a']];
@@ -40,6 +40,7 @@ function renderSettings() {
   $('#bgSw').innerHTML = BGS.map(([k, n, css]) => `<button class="bgo${(u.bg || 'midnight') === k ? ' on' : ''}" data-bg="${k}"><i style="background:${k === 'pieces' ? `url('${pieceTile(u.pieces)}') 0 0/90px 90px,#0a0e1c` : css}"></i>${n}</button>`).join('');
   $('#swatches').innerHTML = BOARDS.map(([n, a, b]) => `<button class="sw${u.board === n ? ' on' : ''}" data-b="${n}" style="--a:${a};--b:${b}" aria-label="${n} board"><i></i><i></i><i></i><i></i></button>`).join('');
   $('#psets').innerHTML = Object.keys(K.PIECESETS || {}).map(n => `<button class="pset${u.pieces === n ? ' on' : ''}" data-p="${n}" aria-label="${n} pieces">${['wn', 'wq', 'bk'].map(p => `<img alt="" src="${K.PIECESETS[n][p]}">`).join('')}</button>`).join('');
+  $$('#sndStyle button').forEach(b => b.classList.toggle('on', b.dataset.ss === (u.sstyle || 'wood'))); $('#sVol').value = Math.round((u.volume ?? .8) * 100);
   $('#arrowSw').innerHTML = ARROWS.map(([k, n, c]) => `<button class="asw${u.arrow === k ? ' on' : ''}" data-a="${k}" style="--c:${c}"><i></i>${n}</button>`).join('');
   $('#markSw').innerHTML = MARKS.map(([k, n, c]) => `<button class="asw sq-sw${u.mark === k ? ' on' : ''}" data-m="${k}" style="--c:${c}"><i></i>${n}</button>`).join('');
   [...document.querySelectorAll('#notSeg button')].forEach(b => b.classList.toggle('on', b.dataset.n === u.notation));
@@ -57,6 +58,10 @@ $('#markSw').onclick = e => { const b = e.target.closest('[data-m]'); if (!b) re
 $('#bgSw').onclick = e => { const b = e.target.closest('[data-bg]'); if (!b) return; A.ui().bg = b.dataset.bg; K.save(); applyUI(); renderSettings(); };
 $('#notSeg').onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; A.ui().notation = b.dataset.n; K.save(); renderSettings(); A.refresh(); };
 $('#sSound').onchange = e => { A.ui().sound = e.target.checked; K.save(); };
+$('#sndStyle').onclick = e => { const b = e.target.closest('[data-ss]'); if (!b) return; A.ui().sstyle = b.dataset.ss; K.save(); renderSettings(); A.sound('move'); };
+$('#sVol').oninput = e => { A.ui().volume = +e.target.value / 100; K.save(); };
+$('#sVol').onchange = () => A.sound('move');
+$('#sndTest').onclick = () => { A.sound('move'); setTimeout(() => A.sound('capture'), 500); setTimeout(() => A.sound('check'), 1000); };
 $('#sCoords').onchange = e => { A.ui().coords = e.target.checked; K.save(); applyUI(); };
 $('#sAnim').onchange = e => { A.ui().anim = e.target.checked; K.save(); applyUI(); };
 $('#nameIn').onchange = e => { S().name = e.target.value.trim(); K.save(); renderMe(); };
@@ -73,12 +78,12 @@ function knock(t0, freq, vol, len) {
   for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
   const src = c.createBufferSource(); src.buffer = buf;
   const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.2;
-  const g = c.createGain(); g.gain.value = vol;
+  const g = c.createGain(); g.gain.value = vol * (A.ui().volume ?? .8);
   src.connect(f); f.connect(g); g.connect(c.destination); src.start(t0);
 }
 function tone(t0, freq, vol, len) {
   const c = ac; const o = c.createOscillator(); const g = c.createGain(); o.type = 'sine'; o.frequency.value = freq;
-  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + .01); g.gain.exponentialRampToValueAtTime(.0001, t0 + len);
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol * (A.ui().volume ?? .8) + .0002, t0 + .01); g.gain.exponentialRampToValueAtTime(.0001, t0 + len);
   o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + len + .05);
 }
 // Recorded-style wooden board sounds (synthesized offline, see gen/sfx.py); the old synth is the fallback.
@@ -92,10 +97,13 @@ function loadSfx() {
 ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, () => loadSfx(), { once: true, passive: true }));
 function playSfx(name) {
   const c = audio(); const buf = SFX[name]; if (!c || !buf) return false;
+  const u = A.ui(); if (u.sstyle === 'classic') return false;
   const src = c.createBufferSource(); src.buffer = buf;
-  if (['move', 'capture', 'castle'].includes(name)) src.playbackRate.value = .97 + Math.random() * .06;   // no two moves sound identical
-  const g = c.createGain(); g.gain.value = (A.ui().volume ?? .8) * (.92 + Math.random() * .08);
-  src.connect(g).connect(c.destination); src.start(); return true;
+  if (['move', 'capture', 'castle'].includes(name)) src.playbackRate.value = (u.sstyle === 'soft' ? .9 : .97) + Math.random() * .06;   // no two moves sound identical
+  const g = c.createGain(); g.gain.value = (u.volume ?? .8) * (u.sstyle === 'soft' ? .7 : 1) * (.92 + Math.random() * .08);
+  let node = src;
+  if (u.sstyle === 'soft') { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1500; f.Q.value = .5; node.connect(f); node = f; }   // felt-pad feel
+  node.connect(g).connect(c.destination); src.start(); return true;
 }
 A.sound = (kind) => {
   if (!A.ui().sound) return; const c = audio(); if (!c) return; loadSfx();
@@ -198,11 +206,13 @@ A.shareCard = async opts => {
   return new Promise(r => c.toBlob(r, 'image/png'));
 };
 A.shareBlob = async (blob, name = 'nextmove-game.png', text = 'My game, reviewed on NextMove') => {
+  A.track('share');
   const file = new File([blob], name, { type: 'image/png' });
   try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text + ' https://nextmove.gg' }); return; } } catch (e) { if (e.name === 'AbortError') return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   A.toast('Image saved. Post it anywhere.');
 };
+A.track = k => { try { window.NM_TRACK && window.NM_TRACK(k); } catch (e) { } };
 A.toast = msg => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); };
 A.clsChip = cls => { const c = CLS[cls]; return c ? `<em class="ic" style="background:${c.c}" title="${c.t}">${c.i}</em>` : ''; };
 A.legalFor = fenGetter => sq => { const c = new Chess(fenGetter()); return c.moves({ square: sq, verbose: true }).map(m => ({ to: m.to })); };

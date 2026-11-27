@@ -71,6 +71,43 @@ async function readBody(request) {
   try { return await request.json(); } catch { return null; }
 }
 
+
+/* ---------- recovery codes: the way back in if you forget your password ---------- */
+const RC_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // no 0/O, 1/I
+function newRecoveryCode() { const b = crypto.getRandomValues(new Uint8Array(16)); let s = ''; for (let i = 0; i < 16; i++) { s += RC_ALPHA[b[i] % 32]; if (i % 4 === 3 && i < 15) s += '-'; } return s; }
+const normCode = c => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+async function setRecovery(env, userId) {
+  const code = newRecoveryCode(); const salt = randomHex(16);
+  await env.DB.prepare('UPDATE users SET recovery_hash = ?, recovery_salt = ? WHERE id = ?').bind(await hashPassword(normCode(code), salt), salt, userId).run();
+  return code;
+}
+async function recover(request, env) {
+  const body = await readBody(request);
+  const username = String(body?.username || '').trim(); const code = normCode(body?.code); const password = String(body?.password || '');
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  if (!(await allowAttempt(env, `recover-ip:${ip}`, 10, 3600e3)) || !(await allowAttempt(env, `recover-user:${username.toLowerCase()}`, 5, 3600e3))) return error('Too many attempts. Try again in an hour.', 429);
+  if (password.length < 8) return error('Use at least 8 characters for your new password.');
+  if (password.length > 200) return error('That password is too long.');
+  const u = await env.DB.prepare('SELECT id, username, recovery_hash, recovery_salt FROM users WHERE username = ?').bind(username).first();
+  if (!u || !u.recovery_hash || !timingSafeEqual(await hashPassword(code, u.recovery_salt), u.recovery_hash)) return error('That username and recovery code don’t match.', 401);
+  const salt = randomHex(16);
+  await env.DB.prepare('UPDATE users SET pass_hash = ?, salt = ? WHERE id = ?').bind(await hashPassword(password, salt), salt, u.id).run();
+  await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(u.id).run();
+  const fresh = await setRecovery(env, u.id);   // each code works once
+  return json({ token: await createSession(env, u.id), user: { id: u.id, username: u.username }, recoveryCode: fresh });
+}
+
+/* ---------- daily stats: plain counters, no cookies, no IPs stored ---------- */
+const STAT_KEYS = new Set(['visit', 'game_bot', 'game_online', 'game_local', 'review', 'puzzle', 'drill', 'course', 'import', 'share', 'install', 'signup']);
+async function bump(env, k, by = 1) { const day = new Date().toISOString().slice(0, 10); await env.DB.prepare('INSERT INTO daily_stats (day, k, n) VALUES (?, ?, ?) ON CONFLICT(day, k) DO UPDATE SET n = n + excluded.n').bind(day, k, by).run(); }
+async function event(request, env) {
+  const body = await readBody(request); const k = String(body?.k || '');
+  if (!STAT_KEYS.has(k) || k === 'signup') return error('Unknown event.');
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  if (!(await allowAttempt(env, `ev:${k}:${ip}`, k === 'visit' ? 5 : 300, 86400e3))) return json({ ok: true });
+  await bump(env, k); return json({ ok: true });
+}
+
 async function signup(request, env) {
   const body = await readBody(request);
   const username = String(body?.username || '').trim();
@@ -86,7 +123,8 @@ async function signup(request, env) {
   const salt = randomHex(16);
   await env.DB.prepare('INSERT INTO users (id, username, pass_hash, salt, created) VALUES (?, ?, ?, ?, ?)')
     .bind(id, username, await hashPassword(password, salt), salt, Date.now()).run();
-  return json({ token: await createSession(env, id), user: { id, username } }, 201);
+  const recoveryCode = await setRecovery(env, id); await bump(env, 'signup').catch(() => { });
+  return json({ token: await createSession(env, id), user: { id, username }, recoveryCode }, 201);
 }
 
 async function login(request, env) {
@@ -152,6 +190,8 @@ async function handleApi(request, env, url, ctx) {
 
   if (path === '/api/import' && method === 'GET') return importGames(url, env, ctx);
   if (path === '/api/signup' && method === 'POST') return signup(request, env);
+  if (path === '/api/recover' && method === 'POST') return recover(request, env);
+  if (path === '/api/ev' && method === 'POST') return event(request, env);
   if (path === '/api/login' && method === 'POST') return login(request, env);
 
   if (path.startsWith('/api/room/')) {
@@ -165,7 +205,25 @@ async function handleApi(request, env, url, ctx) {
   const user = await currentUser(request, env);
   if (!user) return error('Not signed in.', 401);
 
-  if (path === '/api/me' && method === 'GET') return json({ user: { id: user.id, username: user.username } });
+  if (path === '/api/me' && method === 'GET') {
+    const row = await env.DB.prepare('SELECT email, recovery_hash FROM users WHERE id = ?').bind(user.id).first();
+    return json({ user: { id: user.id, username: user.username, email: row?.email || null, hasRecovery: !!row?.recovery_hash, admin: (env.ADMINS || '').toLowerCase().split(',').map(x => x.trim()).includes(user.username.toLowerCase()) } });
+  }
+  if (path === '/api/recovery' && method === 'POST') return json({ recoveryCode: await setRecovery(env, user.id) });
+  if (path === '/api/email' && method === 'PUT') {
+    const body = await readBody(request); const email = String(body?.email || '').trim();
+    if (email && (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200)) return error('That email doesn’t look right.');
+    await env.DB.prepare('UPDATE users SET email = ? WHERE id = ?').bind(email || null, user.id).run();
+    return json({ ok: true, email: email || null });
+  }
+  if (path === '/api/stats' && method === 'GET') {
+    const admins = (env.ADMINS || '').toLowerCase().split(',').map(x => x.trim());
+    if (!admins.includes(user.username.toLowerCase())) return error('Not allowed.', 403);
+    const since = new Date(Date.now() - 60 * 86400e3).toISOString().slice(0, 10);
+    const rows = await env.DB.prepare('SELECT day, k, n FROM daily_stats WHERE day >= ? ORDER BY day').bind(since).all();
+    const users = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first();
+    return json({ rows: rows.results, users: users.n });
+  }
   if (path === '/api/logout' && method === 'POST') {
     await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
     return json({ ok: true });
