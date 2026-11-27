@@ -28,6 +28,7 @@ function detectMe(h) {
   return null;
 }
 function loadReview(pgn, me) {
+  $('#walk') && ($('#walk').hidden = true);
   setTimeout(() => A.renderPlus && A.renderPlus(), 0);
   if (pgn !== SAMPLE && !A.gate('review', String(pgn.length) + ':' + pgn.replace(/\s+/g, ' ').slice(-80))) return false;
   if (R.token) { R.token.cancel = true; K.eng.stop(); }
@@ -242,6 +243,30 @@ function go(i) {
   R.cur = n; render();
 }
 $('#rmoves').onclick = e => { const b = e.target.closest('[data-j]'); if (b) go(+b.dataset.j); };
+// Coach walkthrough: steps through the moments that decided the game, one plain sentence each, like a coach talking.
+function walkList(R = RS) {
+  const mine = R.cls.map((c, k) => ({ c, k })).filter(x => x.c && (!R.me || R.moves[x.k].color === R.me));
+  const bad = mine.filter(x => ['blunder', 'mistake', 'miss'].includes(x.c.cls)).sort((a, b) => b.c.loss - a.c.loss).slice(0, 3);
+  const good = mine.filter(x => ['brilliant', 'great'].includes(x.c.cls)).slice(0, 1);
+  return [...good, ...bad].sort((a, b) => a.k - b.k);
+}
+function walkSay(x, R = RS) {
+  const m = R.moves[x.k], mv = `${Math.floor(x.k / 2) + 1}${m.color === 'w' ? '.' : '…'} ${m.san}`;
+  const best = R.an[x.k] && R.an[x.k].lines[0] ? K.moveName(m.fen, R.an[x.k].lines[0].move) : null;
+  const wb = Math.round(x.c.wb ?? 50), wa = Math.round(x.c.wa ?? 50);
+  if (['brilliant', 'great'].includes(x.c.cls)) return `${mv} was ${x.c.cls === 'brilliant' ? 'brilliant' : 'a great find'}. Moves like this are what you’re aiming for: you found the only strong idea in the position.`;
+  const sz = x.c.cls === 'blunder' ? 'This is the big one.' : x.c.cls === 'miss' ? 'You had a chance here and let it go.' : 'A slip that cost you.';
+  return `${sz} After ${mv} your winning chances went from ${wb}% to ${wa}%.${best ? ` The move to look for was ${best[0].toLowerCase() + best.slice(1)}.` : ''} Before a move like this, ask: what does my opponent want to do next, and is anything of mine undefended?`;
+}
+function walkShow(i) {
+  const R = RS; const L = R.walk; if (!L || !L.length) return; R.walkI = i = Math.max(0, Math.min(L.length - 1, i));
+  const x = L[i]; go(x.k + 1);
+  $('#walk').hidden = false;
+  $('#walk').innerHTML = `<b>Moment ${i + 1} of ${L.length}</b><p>${esc(walkSay(x))}</p><div class="row"><button class="btn sec" id="walkPrev" ${i ? '' : 'disabled'}>Back</button><button class="btn" id="walkNext">${i < L.length - 1 ? 'Next moment' : 'Done'}</button></div>`;
+  $('#walkPrev').onclick = () => walkShow(i - 1);
+  $('#walkNext').onclick = () => { if (i < L.length - 1) walkShow(i + 1); else { $('#walk').hidden = true; R.walk = null; A.toast('That’s the game. Those positions are now in your drills.'); } };
+}
+$('#walkBtn').onclick = () => { const L = walkList(); if (!L.length) { A.toast('Clean game: no big mistakes to walk through.'); return; } RS.walk = L; walkShow(0); };
 $('#moments').onclick = e => { const b = e.target.closest('[data-j]'); if (b) go(+b.dataset.j); };
 $('#rnav').onclick = e => { const b = e.target.closest('[data-nav]'); if (!b) return; const n = b.dataset.nav; if (n === 'flip') { rb.flip(); render(); return; } go(n === 'first' ? 0 : n === 'prev' ? R.cur - 1 : n === 'next' ? R.cur + 1 : R.fens.length - 1); };
 $('#nextMistake').onclick = () => { for (let k = R.cur; k < R.moves.length; k++) { const c = R.cls[k]; if (c && BAD.includes(c.cls) && (!R.me || R.moves[k].color === R.me) && k + 1 > R.cur) { go(k + 1); return; } } A.toast('No more mistakes after this point'); };

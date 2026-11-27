@@ -195,6 +195,8 @@ async function handleApi(request, env, url, ctx) {
     await env.DB.prepare('INSERT INTO errors (t, msg, src, ua, path) VALUES (?, ?, ?, ?, ?)').bind(Date.now(), clip(b.msg, 500), clip(b.src, 300), clip(request.headers.get('user-agent'), 200), clip(b.path, 100)).run();
     return json({ ok: true });
   }
+  if (path.startsWith('/api/u/') && method === 'GET') return profile(decodeURIComponent(path.slice(7)), env);
+  if (path === '/api/daily' && method === 'GET') return dailyBoard(url, env);
   if (path === '/api/billing/config' && method === 'GET') return json({ enabled: billingOn(env), price: '$2.99', yearly: env.STRIPE_PRICE_YEAR ? '$24.99' : null, trialDays: +(env.TRIAL_DAYS || 0) });
   if (path === '/api/stripe/webhook' && method === 'POST') return stripeWebhook(request, env);
   if (path === '/api/signup' && method === 'POST') return signup(request, env);
@@ -224,6 +226,19 @@ async function handleApi(request, env, url, ctx) {
     return json({ user: { id: user.id, username: user.username, email: row?.email || null, hasRecovery: !!row?.recovery_hash, plan: plus ? 'plus' : 'free', planUntil: row?.plan_until || null, founder: !!row?.founder, comp: !!row?.comp, admin: isAdmin(env, user.username) } });
   }
   if (path.startsWith('/api/admin/')) return admin(path, method, request, env, user);
+  if (path === '/api/friends') return friends(method, request, env, user);
+  if (path === '/api/report' && method === 'POST') {
+    const b = await request.json().catch(() => ({})); const clip = (v, n) => String(v || '').slice(0, n);
+    if (!b.username) return error('Who are you reporting?');
+    await env.DB.prepare('INSERT INTO reports (t, by_user, target, reason, note, gid) VALUES (?, ?, ?, ?, ?, ?)').bind(Date.now(), user.username, clip(b.username, 40), clip(b.reason, 40), clip(b.note, 500), clip(b.gid, 60)).run();
+    return json({ ok: true });
+  }
+  if (path === '/api/daily' && method === 'POST') {
+    const b = await request.json().catch(() => ({})); const d = new Date().toISOString().slice(0, 10);
+    if (b.day !== d || !(b.ms > 1500 && b.ms < 3600e3)) return error('That result doesn’t look right.');
+    await env.DB.prepare('INSERT INTO daily_results (day, user_id, username, ms, first) VALUES (?, ?, ?, ?, ?) ON CONFLICT(day, user_id) DO NOTHING').bind(d, user.id, user.username, Math.round(b.ms), b.first ? 1 : 0).run();
+    return json({ ok: true });
+  }
   if (path === '/api/billing/checkout' && method === 'POST') return checkout(request, env, user, await request.json().catch(() => ({})));
   if (path === '/api/billing/portal' && method === 'POST') return portal(request, env, user);
   if (path === '/api/recovery' && method === 'POST') return json({ recoveryCode: await setRecovery(env, user.id) });
@@ -277,6 +292,7 @@ export default {
       try { return await handleApi(request, env, url, ctx); }
       catch (e) { console.error(e); return error('Server error.', 500); }
     }
+    if (/^\/u\/[A-Za-z0-9_-]{2,24}\/?$/.test(url.pathname)) return env.ASSETS.fetch(new Request(new URL('/profile', url), request));   // public profiles
     return env.ASSETS.fetch(request);
   },
   // Daily cleanup of expired sessions and old rate-limit rows.
@@ -451,6 +467,8 @@ async function admin(path, method, request, env, user) {
       FROM users u ORDER BY u.created DESC LIMIT 500`).all();
     return json({ users: r.results.map(u => ({ ...u, admin: isAdmin(env, u.username), plus: isAdmin(env, u.username) || !!u.comp || (u.plan === 'plus' && (u.plan_until || 0) > Date.now()) })) });
   }
+  if (path === '/api/admin/reports' && method === 'GET') { const r = await env.DB.prepare('SELECT id, t, by_user, target, reason, note, gid, done FROM reports ORDER BY id DESC LIMIT 100').all(); return json({ reports: r.results }); }
+  if (path === '/api/admin/report' && method === 'POST') { const b = await request.json().catch(() => ({})); await env.DB.prepare('UPDATE reports SET done = 1 WHERE id = ?').bind(+b.id).run(); return json({ ok: true }); }
   if (path === '/api/admin/user' && method === 'POST') {
     const b = await request.json().catch(() => ({}));
     const t = await env.DB.prepare('SELECT id, username FROM users WHERE username = ?').bind(String(b.username || '')).first();
@@ -467,4 +485,47 @@ async function admin(path, method, request, env, user) {
     return json({ ok: true });
   }
   return error('Not found.', 404);
+}
+
+/* ---------- public profiles ---------- */
+async function profile(name, env) {
+  const u = await env.DB.prepare('SELECT u.id, u.username, u.created, u.plan, u.plan_until, u.comp, u.founder, s.json FROM users u LEFT JOIN state s ON s.user_id = u.id WHERE u.username = ?').bind(name).first();
+  if (!u) return error('No player with that name.', 404);
+  let st = {}; try { st = JSON.parse(u.json || '{}'); } catch { }
+  if (st.private) return json({ username: u.username, private: true });
+  const fin = (st.games || []).filter(g => g.result && g.result !== '*');
+  const won = fin.filter(g => g.me && ((g.result === '1-0' && g.me === 'w') || (g.result === '0-1' && g.me === 'b'))).length;
+  const draws = fin.filter(g => g.result === '1/2-1/2').length;
+  return json({ username: u.username, created: u.created, plus: isAdmin(env, u.username) || !!u.comp || (u.plan === 'plus' && (u.plan_until || 0) > Date.now()), founder: !!u.founder,
+    xp: (st.xp && st.xp.t) || 0, banner: st.banner || 'midnight', awards: Object.keys(st.awards || {}), elo: st.elo ? st.elo.r : null, puzzle: st.puz ? Math.round(st.puz.r) : null,
+    games: fin.length, won, draws, lost: fin.length - won - draws, best: st.best || {},
+    recent: fin.slice(-8).reverse().map(g => ({ date: g.date, white: g.white, black: g.black, result: g.result, me: g.me, src: g.src })) }, 200, { 'cache-control': 'public, max-age=60' });
+}
+/* ---------- friends: request, accept, remove; list with last activity ---------- */
+async function friends(method, request, env, user) {
+  if (method === 'GET') {
+    const r = await env.DB.prepare(`SELECT f.user_id, f.friend_id, f.status, u.username, (SELECT t FROM state s WHERE s.user_id = u.id) AS last
+      FROM friends f JOIN users u ON u.id = CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END WHERE f.user_id = ? OR f.friend_id = ?`).bind(user.id, user.id, user.id).all();
+    return json({ friends: r.results.map(x => ({ username: x.username, last: x.last, status: x.status === 'ok' ? 'friends' : x.user_id === user.id ? 'sent' : 'incoming' })) });
+  }
+  const b = await request.json().catch(() => ({}));
+  const t = await env.DB.prepare('SELECT id, username FROM users WHERE username = ?').bind(String(b.username || '')).first();
+  if (!t) return error('No player with that name.', 404);
+  if (t.id === user.id) return error('That’s you.');
+  const ex = await env.DB.prepare('SELECT user_id, friend_id, status FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').bind(user.id, t.id, t.id, user.id).first();
+  if (method === 'POST') {
+    if (ex && ex.status === 'ok') return json({ ok: true, status: 'friends' });
+    if (ex && ex.user_id === t.id) { await env.DB.prepare("UPDATE friends SET status = 'ok' WHERE user_id = ? AND friend_id = ?").bind(t.id, user.id).run(); return json({ ok: true, status: 'friends' }); }
+    if (!ex) { const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM friends WHERE user_id = ? OR friend_id = ?').bind(user.id, user.id).first(); if (n.n >= 300) return error('Friend list is full.'); await env.DB.prepare("INSERT INTO friends (user_id, friend_id, status, created) VALUES (?, ?, 'pending', ?)").bind(user.id, t.id, Date.now()).run(); }
+    return json({ ok: true, status: 'sent' });
+  }
+  if (method === 'DELETE') { await env.DB.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').bind(user.id, t.id, t.id, user.id).run(); return json({ ok: true }); }
+  return error('Not found.', 404);
+}
+/* ---------- daily puzzle leaderboard ---------- */
+async function dailyBoard(url, env) {
+  const d = url.searchParams.get('day') || new Date().toISOString().slice(0, 10);
+  const r = await env.DB.prepare('SELECT username, ms, first FROM daily_results WHERE day = ? ORDER BY first DESC, ms ASC LIMIT 20').bind(d).all();
+  const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM daily_results WHERE day = ?').bind(d).first();
+  return json({ day: d, top: r.results, solvers: n.n }, 200, { 'cache-control': 'public, max-age=30' });
 }

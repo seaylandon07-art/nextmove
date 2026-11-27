@@ -101,24 +101,40 @@ function setupDaily() {
   const s = S(); const today = A.today(); s.daily = s.daily || {};
   let p = s.daily.date === today ? A.PUZ.find(x => x.id === s.daily.id) : null;
   if (!p) {
-    const r = s.puz.r || 1000; const pool = A.PUZ.filter(x => Math.abs(x.rating - r) < 200); const arr = pool.length ? pool : A.PUZ;
+    // the same puzzle for everyone today, so the leaderboard is fair
+    const pool = A.PUZ.filter(x => x.rating >= 1000 && x.rating <= 1500); const arr = pool.length ? pool : A.PUZ;
     let h = 0; for (const ch of today) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     p = arr[h % arr.length]; s.daily = { date: today, id: p.id, done: false }; K.save();
   }
-  D.p = p; D.i = 0; D.g = new Chess(p.fen); D.done = !!s.daily.done; D.busy = false;
+  D.p = p; D.i = 0; D.g = new Chess(p.fen); D.done = !!s.daily.done; D.busy = false; D.t0 = performance.now(); D.miss = false;
+  dailyBoard();
   const me = D.g.turn(); db.orient = me;
   $('#dpMeta').textContent = `Rated ${p.rating}`;
   $('#dpPrompt').textContent = `${me === 'w' ? 'White' : 'Black'} to move. Find the strongest move.`;
   if (D.done) { const c = new Chess(p.fen); p.sol.forEach(u => K.mv(c, u)); db.set(c.fen(), { last: p.sol[p.sol.length - 1] }); dpFb('ok', 'Solved today', 'A new one appears tomorrow.', `<div class="row" style="margin-top:6px"><button class="btn" data-train="tactics">More puzzles</button></div>`); $('#dpTools').innerHTML = ''; return; }
   db.set(p.fen, { last: p.last || null }); $('#dpFb').innerHTML = '';
   $('#dpTools').innerHTML = '<button class="btn sec" id="dpHint">Hint</button>';
-  $('#dpHint').onclick = () => { const u = p.sol[D.i]; if (u) db.set(D.g.fen(), { marks: { [u.slice(0, 2)]: 'hint' } }); };
+  $('#dpHint').onclick = () => { D.miss = true; const u = p.sol[D.i]; if (u) db.set(D.g.fen(), { marks: { [u.slice(0, 2)]: 'hint' } }); };
 }
 function solved(other) {
   const s = S(); s.daily.done = true; A.tick(); K.save(); D.done = true;
   A.sound('good'); A.flash(db.host, 'ok');
   dpFb('ok', other ? 'That wins too. Solved!' : 'Solved!', 'Nice. Keep the streak going with a few more.', `<div class="row" style="margin-top:6px"><button class="btn" data-train="tactics">More puzzles</button></div>`);
   $('#dpTools').innerHTML = ''; renderToday();
+  const ms = performance.now() - D.t0;
+  if (window.NM_API && window.NM_USER && window.NM_USER()) window.NM_API('/daily', { method: 'POST', body: JSON.stringify({ day: new Date().toISOString().slice(0, 10), ms, first: !D.miss }) }).then(dailyBoard, () => { });
+  else dailyBoard();
+  $('#dpBoard').dataset.mine = `${(ms / 1000).toFixed(1)}s${D.miss ? '' : ', first try'}`;
+}
+// Today's fastest solvers (signed-in players)
+async function dailyBoard() {
+  const el = $('#dpBoard'); if (!el || !window.NM_WEB) return;
+  try {
+    const d = await (await fetch('/api/daily')).json(); if (!d.top) return;
+    const t = ms => ms < 60000 ? (ms / 1000).toFixed(1) + 's' : Math.floor(ms / 60000) + ':' + String(Math.round(ms % 60000 / 1000)).padStart(2, '0');
+    el.hidden = !d.top.length && !el.dataset.mine;
+    el.innerHTML = `<div class="dbh"><b>Today’s fastest</b><span>${d.solvers} solved</span></div>${d.top.slice(0, 5).map((r, i) => `<div class="dbr${window.NM_USER && r.username === window.NM_USER() ? ' me' : ''}"><span>${i + 1}</span><a href="/u/${encodeURIComponent(r.username)}">${esc(r.username)}</a><em>${r.first ? '' : 'retry'}</em><b>${t(r.ms)}</b></div>`).join('')}${el.dataset.mine && !(window.NM_USER && window.NM_USER()) ? `<p class="small mute" style="margin:6px 0 0">You: ${el.dataset.mine}. Sign in to get on the board.</p>` : ''}`;
+  } catch (e) { }
 }
 function dailyMove(f, t, pr) {
   const fen = D.g.fen(); const u = f + t + (pr || ''); const want = D.p.sol[D.i];
@@ -136,7 +152,7 @@ function dailyMove(f, t, pr) {
   K.judge(fen, u, { depth: 14, tol: 4 }).then(j => {
     if (j.ok) { solved(true); return; }
     A.sound('bad'); A.flash(db.host, 'no');
-    dpFb('no', 'Not this one', 'Look for checks, captures and threats first. Try again.');
+    D.miss = true; dpFb('no', 'Not this one', 'Look for checks, captures and threats first. Try again.');
     D.g.undo(); setTimeout(() => { db.set(D.g.fen(), { last: D.i ? D.p.sol[D.i - 1] : D.p.last || null }); D.busy = false; }, 700);
   });
   return true;

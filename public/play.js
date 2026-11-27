@@ -328,6 +328,7 @@ function endGame(res, text, remote) {
   K.save(); A.sound('end');
   if (P.mode === 'online' && !remote) pushOnline();
   $('#overBox').hidden = false; $('#overText').textContent = text;
+  $('#reportBtn').hidden = !(P.mode === 'online' && window.NM_WEB && P.online && P.online.ranked);
   const cs = coachSummary(); $('#overCoach').hidden = !cs; $('#overCoach').textContent = cs; showRatings();
   render(); A.refresh();
 }
@@ -497,6 +498,7 @@ A.findOpponent = () => {
   $('#seekTc').textContent = tc; $('#seekTime').textContent = '0:00'; $('#seekBox').hidden = false; $('#seekBtn').hidden = true;
 };
 async function startMatch(m) {
+  if (A.blocked && A.blocked().includes(m.opp.name)) { A.findOpponent(); return; }   // paired with someone you blocked: quietly search again
   if (!(await joinRoom(m.code))) return;
   P.online = { role: m.role, code: m.code, hostColor: m.role === 'host' ? m.color : (m.color === 'w' ? 'b' : 'w'), tc: m.tc, round: 0, started: false, oppName: `${m.opp.name} (${m.opp.r})`, oppR: m.opp.r, ranked: true };
   try { gr.presence(myState()); } catch (e) { }
@@ -505,6 +507,7 @@ async function startMatch(m) {
 }
 $('#seekBtn').onclick = () => A.findOpponent();
 $('#seekCancel').onclick = () => stopSeek();
+$('#reportBtn').onclick = () => { const o = P.online; if (o) A.reportPlayer(o.oppName || 'opponent', P.gid); };
 $('#hostLink').onclick = () => { const o = P.online; if (!o) return; const url = `${location.origin}/?join=${o.code}`; (navigator.share && matchMedia('(pointer: coarse)').matches ? navigator.share({ title: 'Play me on NextMove', url }).catch(() => { }) : navigator.clipboard.writeText(url).then(() => A.toast('Invite link copied. Send it to your friend.'), () => A.toast(url))); };
 A.joinCode = code => { P.mode = 'online'; newGame(); A.go('play'); renderSetup(); $('#joinCode').value = code; $('#joinBtn').click(); };
 $('#hostBtn').onclick = async () => {

@@ -58,7 +58,7 @@ h1{font-size:28px;letter-spacing:-.02em;margin:0 0 4px}.sub{color:var(--mute);ma
 @media(prefers-reduced-motion:reduce){.skel{animation:none}}
 </style></head><body>
 <header class="top"><div class="topin"><a class="brand" href="/"><img src="/icons/icon-192.png" alt="">NextMove <span>Admin</span></a>
-  <nav class="tabs" id="tabs" hidden><button data-t="overview" class="on">Overview</button><button data-t="accounts">Accounts</button><button data-t="errors">Errors</button></nav>
+  <nav class="tabs" id="tabs" hidden><button data-t="overview" class="on">Overview</button><button data-t="accounts">Accounts</button><button data-t="reports">Reports</button><button data-t="errors">Errors</button></nav>
   <span class="who" id="who"></span></div></header>
 <main id="main"><div class="kpis"><div class="kpi"><div class="skel" style="width:60%"></div><div class="skel" style="height:28px;margin-top:10px"></div></div><div class="kpi"><div class="skel" style="width:60%"></div><div class="skel" style="height:28px;margin-top:10px"></div></div><div class="kpi"><div class="skel" style="width:60%"></div><div class="skel" style="height:28px;margin-top:10px"></div></div><div class="kpi"><div class="skel" style="width:60%"></div><div class="skel" style="height:28px;margin-top:10px"></div></div></div></main>
 <div id="toast" hidden></div>
@@ -172,6 +172,19 @@ async function act(u, a) {
   } catch (e) { toast(e.message); }
 }
 
+/* ---------- reports ---------- */
+async function reports() {
+  $('#main').innerHTML = `<h1>Reports</h1><p class="sub">Players reported by other players. Open a player in Accounts to act on a report.</p><div class="card" id="rl"><div class="empty">Loading…</div></div>`;
+  try {
+    const rs = (await api('/admin/reports')).reports;
+    const draw = () => { $('#rl').innerHTML = rs.length ? rs.map(r => `<div class="err" style="${r.done ? 'opacity:.5' : ''}"><time>${new Date(r.t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time><div><b>${esc(r.target)}</b> · ${esc(r.reason)} <span style="color:var(--mute)">reported by ${esc(r.by_user)}</span>${r.note ? `<code>${esc(r.note)}</code>` : ''}<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><a class="btn ghost" href="/u/${encodeURIComponent(r.target)}" target="_blank" style="padding:6px 12px">Profile</a><button class="btn ghost" data-acc="${esc(r.target)}" style="padding:6px 12px">Find in accounts</button>${r.done ? '' : `<button class="btn gold" data-done="${r.id}" style="padding:6px 12px">Mark handled</button>`}</div></div></div>`).join('') : '<div class="empty">No reports. Everyone’s behaving.</div>'; };
+    draw();
+    $('#rl').onclick = async e => { const d = e.target.closest('[data-done]'), a = e.target.closest('[data-acc]');
+      if (d) { await api('/admin/report', { method: 'POST', body: JSON.stringify({ id: +d.dataset.done }) }); rs.find(r => r.id === +d.dataset.done).done = 1; draw(); toast('Marked as handled'); }
+      if (a) { S.q = a.dataset.acc; show('accounts'); } };
+  } catch (e) { $('#rl').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
 /* ---------- errors ---------- */
 function errors() {
   const es = S.stats.errors || [];
@@ -179,7 +192,7 @@ function errors() {
   <div class="card">${es.length ? es.map(x => `<div class="err"><time>${new Date(x.t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time><div>${esc(x.msg)}<code>${esc(x.src)} ${esc(x.path)}</code></div></div>`).join('') : '<div class="empty">No errors reported. Nice.</div>'}</div>`;
 }
 
-function show(t) { S.tab = t; [...$('#tabs').children].forEach(b => b.classList.toggle('on', b.dataset.t === t)); history.replaceState(null, '', '#' + t); ({ overview, accounts, errors })[t](); }
+function show(t) { S.tab = t; [...$('#tabs').children].forEach(b => b.classList.toggle('on', b.dataset.t === t)); history.replaceState(null, '', '#' + t); ({ overview, accounts, reports, errors })[t](); }
 $('#tabs').onclick = e => { const b = e.target.closest('[data-t]'); if (b) show(b.dataset.t); };
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S.tab === 'overview' && S.stats) overview(); }, 150); });
 (async () => {
@@ -188,7 +201,7 @@ let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() 
     const me = (await api('/me')).user; if (!me.admin) throw Object.assign(new Error('x'), { status: 403 });
     $('#who').textContent = 'Signed in as ' + me.username;
     S.stats = await api('/stats'); $('#tabs').hidden = false;
-    show(['overview', 'accounts', 'errors'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview');
+    show(['overview', 'accounts', 'reports', 'errors'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview');
   } catch (e) {
     const signin = e.status === 401;
     $('#main').innerHTML = `<div class="gate"><img src="/icons/icon-192.png" alt=""><h1>${signin ? 'Sign in first' : 'Admins only'}</h1><p class="sub">${signin ? 'Sign in on NextMove with your admin account, then come back to this page.' : 'This page is only for NextMove admins.'}</p><a class="btn gold" href="/">Go to NextMove</a></div>`;

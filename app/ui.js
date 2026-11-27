@@ -47,6 +47,7 @@ function renderSettings() {
   [...document.querySelectorAll('#notSeg button')].forEach(b => b.classList.toggle('on', b.dataset.n === u.notation));
   $('#sSound').checked = u.sound; $('#sCoords').checked = u.coords; $('#sAnim').checked = u.anim;
   for (const k of ['confirm', 'blunder', 'zen', 'streamer']) { const el = $('#s_' + k); if (el) el.checked = !!u[k]; }
+  if ($('#s_private')) $('#s_private').checked = !!S().private;
   $('#nameIn').value = S().name || ''; $('#depthIn').value = String(S().depth || 14);
 }
 document.addEventListener('click', e => {
@@ -66,6 +67,7 @@ $('#sVol').onchange = () => A.sound('move');
 $('#sndTest').onclick = () => { A.sound('move'); setTimeout(() => A.sound('capture'), 500); setTimeout(() => A.sound('check'), 1000); };
 $('#sCoords').onchange = e => { A.ui().coords = e.target.checked; K.save(); applyUI(); };
 $('#sAnim').onchange = e => { A.ui().anim = e.target.checked; K.save(); applyUI(); };
+if ($('#s_private')) $('#s_private').onchange = e => { S().private = e.target.checked; K.save(); A.toast(e.target.checked ? 'Your profile is now private' : 'Your profile is public'); };
 for (const k of ['confirm', 'blunder', 'zen', 'streamer']) { const el = $('#s_' + k); if (el) el.onchange = e => { A.ui()[k] = e.target.checked; K.save(); applyUI(); A.refresh && A.refresh(); }; }
 $('#nameIn').onchange = e => { S().name = e.target.value.trim(); K.save(); renderMe(); };
 $('#depthIn').onchange = e => { if (+e.target.value > 14 && A.locked('deep')) { e.target.value = String(S().depth || 14); A.showPlus('deep'); return; } S().depth = +e.target.value; K.save(); };

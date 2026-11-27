@@ -124,7 +124,7 @@ function render() {
           <div class="xpbar"><i style="width:${(l.into / l.need * 100).toFixed(1)}%"></i></div><small>${l.into} / ${l.need} XP to level ${l.L + 1} · ${s.xp.t.toLocaleString()} XP total</small></div>
         <div class="pnums"><div><b>${s.elo ? s.elo.r : '–'}</b><small>Play</small></div><div><b>${Math.round(s.puz.r)}</b><small>Puzzles</small></div><div><b>${got.length}/${AWARDS.length}</b><small>Awards</small></div></div>
       </div>
-      <div class="pacts"><button class="btn sec" id="banBtn">Change banner</button></div>
+      <div class="pacts">${window.NM_WEB ? '<button class="btn sec" id="profLink" type="button">Share profile</button>' : ''}<button class="btn sec" id="banBtn">Change banner</button></div>
       <div class="banpick" id="banPick" hidden>${BANNERS.filter(b => !['plus', 'founder'].includes(b.aw) || (A.paywall && A.paywall())).map(b => { const u = unlocked(s, b); return `<button class="bano${b.id === ban.id ? ' on' : ''}" data-ban="${b.id}" ${u ? '' : 'disabled'}><i style="background:${b.css.replace(/"/g, '&quot;')}"></i><span>${b.n}</span><small>${u ? (b.id === ban.id ? 'In use' : 'Unlocked') : b.aw === 'plus' ? 'NextMove Plus' : b.aw ? 'Award: ' + AWARDS.find(a => a.id === b.aw).n : 'Level ' + b.lv}</small></button>`; }).join('')}</div>
     </div>`;
   $('#awards').innerHTML = AWARDS.filter(a => a.id !== 'founder' || (A.paywall && A.paywall())).map(a => { const d = s.awards[a.id]; return `<div class="aw${d ? ' got' : ''}" style="--tc:${TIER[a.tier]}" title="${esc(a.d)}${d ? ' · earned ' + d : ''}"><span class="awi"><img src="${K.PIECE[(d ? 'w' : 'b') + a.p]}" alt=""></span><b>${esc(a.n)}</b><small>${esc(a.d)}</small></div>`; }).join('');
@@ -135,6 +135,6 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-ban]'); if (b && !b.disabled) { S().banner = b.dataset.ban; K.save(); render(); $('#banPick').hidden = false; }
 });
 const pv = A.views.progress; const pe = pv.enter, pr = pv.refresh;
-pv.enter = () => { pe(); render(); }; pv.refresh = () => { pr(); if (A.cur() === 'progress') render(); };
+pv.enter = () => { pe(); render(); A.renderFriends && A.renderFriends(); }; pv.refresh = () => { pr(); if (A.cur() === 'progress') render(); };
 A.levelInfo = () => { const s = ensure(); const l = lvl(s.xp.t); return { ...l, title: titleOf(l.L)[1], total: s.xp.t }; };
 }

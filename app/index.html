@@ -580,6 +580,9 @@ body.streamer #meCard{visibility:hidden}
 .opr .n{text-align:right;font-variant-numeric:tabular-nums}.opr.locked{filter:blur(3px);opacity:.5;pointer-events:none}
 .oplock{margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(241,207,134,.07);box-shadow:inset 0 0 0 1px rgba(241,207,134,.25);font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 @media(max-width:700px){.opr{grid-template-columns:minmax(0,1fr) 44px minmax(70px,1fr) 46px}.opr .side,.opr .acc{display:none}}
+.walk{margin:10px 0;padding:12px 14px;border-radius:14px;background:rgba(241,207,134,.07);box-shadow:inset 0 0 0 1px rgba(241,207,134,.3)}.walk b{display:block;margin-bottom:4px}.walk p{margin:0 0 10px;font-size:14px}.walk .row{gap:8px}
+.dboard{margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(150,166,232,.05);box-shadow:inset 0 0 0 1px rgba(160,176,236,.1)}.dbh{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px}.dbh span{color:var(--mute)}.dbr{display:grid;grid-template-columns:18px minmax(0,1fr) auto 52px;gap:8px;font-size:13.5px;padding:3px 0;align-items:center}.dbr span{color:var(--mute)}.dbr a{color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dbr a:hover{text-decoration:underline}.dbr em{font-style:normal;color:var(--mute);font-size:12px}.dbr b{text-align:right;font-variant-numeric:tabular-nums}.dbr.me a{color:var(--acc2,#f6dc9e)}
+.fadd{display:flex;gap:8px}.fadd input{flex:1}.frow{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid rgba(160,176,236,.08)}.frow:first-of-type{margin-top:10px}.fav{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:700;background:linear-gradient(135deg,#2b3670,#18204a);color:var(--ink);text-decoration:none}.frow a{color:var(--ink);text-decoration:none}.frow small{display:block;color:var(--mute);font-size:12.5px}.frow .row{gap:6px;flex-wrap:nowrap}
 </style>
 </head>
 <body>
@@ -739,7 +742,7 @@ body.streamer #meCard{visibility:hidden}
       <div class="hhead"><h2>Daily puzzle</h2><span class="mute small" id="dpMeta"></span></div>
       <div class="dp panel">
         <div class="bd" id="dpBd"></div>
-        <div class="dpside"><p class="dpq" id="dpPrompt"></p><div id="dpFb"></div><div class="row" id="dpTools"></div></div>
+        <div class="dpside"><p class="dpq" id="dpPrompt"></p><div id="dpFb"></div><div class="row" id="dpTools"></div><div class="dboard" id="dpBoard" hidden></div></div>
       </div>
     </div>
     <div class="hsec">
@@ -800,7 +803,7 @@ body.streamer #meCard{visibility:hidden}
       <div class="coach" id="coachBox" hidden></div>
       <ol class="sheet" id="pmoves"></ol>
       <div class="pnav" id="pnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Back to the game"><svg class="i"><use href="#i-last"/></svg></button></div>
-      <div class="sec" id="overBox" hidden><div class="result"><b id="overText">Game over</b><div class="ratings" id="overRatings" hidden></div><p class="small" id="overCoach" hidden></p><div class="row"><button class="btn" id="reviewThis">Full review with explanations</button><button class="btn sec" id="shareGame"><svg class="i"><use href="#i-share"/></svg>Share</button><button class="btn sec" id="rematchBtn">Rematch</button><button class="btn sec" id="newBtn2">New game</button></div></div></div>
+      <div class="sec" id="overBox" hidden><div class="result"><b id="overText">Game over</b><div class="ratings" id="overRatings" hidden></div><p class="small" id="overCoach" hidden></p><div class="row"><button class="btn" id="reviewThis">Full review with explanations</button><button class="btn sec" id="shareGame"><svg class="i"><use href="#i-share"/></svg>Share</button><button class="btn quiet" id="reportBtn" type="button" hidden>Report player</button><button class="btn sec" id="rematchBtn">Rematch</button><button class="btn sec" id="newBtn2">New game</button></div></div></div>
       <div class="tools">
         <button class="btn" id="hintBtn"><svg class="i"><use href="#i-bulb"/></svg>Hint</button>
         <button class="btn" id="undoBtn"><svg class="i"><use href="#i-undo"/></svg>Takeback</button>
@@ -848,7 +851,7 @@ body.streamer #meCard{visibility:hidden}
       <section>
         <div class="sumgrid" id="sumgrid"></div>
       </section>
-      <section id="momentsSec" hidden><h3>Key moments</h3><div class="moments" id="moments"></div></section>
+      <section id="momentsSec" hidden><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Key moments</h3><button class="btn sec" id="walkBtn" type="button">Walk me through it</button></div><div class="walk" id="walk" hidden></div><div class="moments" id="moments"></div></section>
       <section>
         <div class="exbar" id="exBar" hidden><span id="exLine"></span><button class="btn sec" id="exBack">Back to game</button></div>
         <div class="detail" id="rdetail"></div>
@@ -925,6 +928,7 @@ body.streamer #meCard{visibility:hidden}
 <section class="view" id="progress" hidden>
   <div style="grid-column:1/-1"><h1>Progress</h1><p class="mute" id="syncNote"></p></div>
   <div id="profile" style="grid-column:1/-1"></div>
+  <div class="panel"><div class="ph"><h2>Friends</h2></div><section id="friends"></section></div>
   <div class="panel week" style="grid-column:1/-1"><div class="ph"><h2>Your week</h2><span class="sp small mute" id="weekNote"></span></div><section><div class="wk" id="week"></div><p class="wfocus" id="weekFocus"></p></section></div>
   <div class="stats" id="stats"></div>
   <div class="panel card"><div class="ph"><h2>Puzzle rating</h2></div><section><div class="fig"><svg id="rchart"></svg></div></section></div>
@@ -956,7 +960,7 @@ body.streamer #meCard{visibility:hidden}
     <section><h3>Sound</h3><div class="seg" id="sndStyle"><button data-ss="wood">Wood</button><button data-ss="soft">Soft</button><button data-ss="classic">Classic</button></div>
       <label class="f" style="margin-top:12px">Volume <input type="range" id="sVol" min="0" max="100" step="5"></label><button class="btn quiet" id="sndTest" type="button" style="padding:0;margin-top:4px">Play a test move</button></section>
     <section class="row" style="gap:16px"><label class="chk"><input type="checkbox" id="sSound"> Move sounds</label><label class="chk"><input type="checkbox" id="sCoords"> Coordinates</label><label class="chk"><input type="checkbox" id="sAnim"> Animate moves</label></section>
-    <section class="row" style="gap:16px;flex-wrap:wrap"><label class="chk"><input type="checkbox" id="s_blunder"> Blunder check vs bots</label><label class="chk"><input type="checkbox" id="s_confirm"> Tap twice to confirm moves</label><label class="chk"><input type="checkbox" id="s_zen"> Zen mode (hide ratings, eval, coach)</label><label class="chk"><input type="checkbox" id="s_streamer"> Streamer mode (hide my name)</label></section>
+    <section class="row" style="gap:16px;flex-wrap:wrap"><label class="chk"><input type="checkbox" id="s_blunder"> Blunder check vs bots</label><label class="chk"><input type="checkbox" id="s_confirm"> Tap twice to confirm moves</label><label class="chk"><input type="checkbox" id="s_zen"> Zen mode (hide ratings, eval, coach)</label><label class="chk"><input type="checkbox" id="s_streamer"> Streamer mode (hide my name)</label><label class="chk"><input type="checkbox" id="s_private"> Private profile</label></section>
     <section><label class="f">Your usernames, comma separated (used to spot your side in imported games)<input type="text" id="nameIn" placeholder="e.g. landon_s, landon"></label></section>
     <section><label class="f">Review depth<select id="depthIn"><option value="12">Fast</option><option value="14">Normal</option><option value="16">Deep (slower)</option></select></label></section>
     <section><button class="btn sec" id="resetBtn">Reset all progress</button><div class="fb no" id="resetConfirm" hidden style="margin-top:10px"><b>Erase all games, drills and ratings?</b><div class="row"><button class="btn" id="resetYes" style="background:var(--no)">Erase</button><button class="btn sec" id="resetNo">Cancel</button></div></div></section>
@@ -976,6 +980,7 @@ body.streamer #meCard{visibility:hidden}
 <script src="progress.js"></script>
 <script src="rewards.js"></script>
 <script src="plus.js"></script>
+<script src="social.js"></script>
 <script src="home.js"></script>
 </body>
 </html>
