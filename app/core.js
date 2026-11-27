@@ -459,7 +459,7 @@ class Board {
       e.preventDefault();
     } else if (this.sel) { this.sel = null; this.dests = []; this.render(); }
   }
-  posGhost(e) { if (!this.ghost) return; const w = parseFloat(this.ghost.style.width); this.ghost.style.transform = `translate(${e.clientX - w / 2}px,${e.clientY - w / 2}px)`; }
+  posGhost(e) { if (!this.ghost) return; const w = parseFloat(this.ghost.style.width); this.ghost.style.transform = `translate(${e.clientX - w / 2}px,${e.clientY - w / 2}px) scale(1.16)`; }
   moveG(e) { if (!this.drag) return; if (Math.hypot(e.clientX - this.drag.x, e.clientY - this.drag.y) > 4) this.drag.moved = true; this.posGhost(e); }
   cancelDrag() { if (this.ghost) this.ghost.remove(); this.ghost = null; this.drag = null; }
   up(e) {
