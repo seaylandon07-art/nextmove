@@ -103,6 +103,14 @@ function summary(R = RS) {
   const pa = c => Object.fromEntries(Object.entries(ph[c]).map(([k, v]) => [k, v.length ? K.gameAcc(v) : null]));
   return { acc: { w: K.gameAcc(acc.w), b: K.gameAcc(acc.b) }, phase: { w: pa('w'), b: pa('b') }, counts, opening: K.openingName(R.fens) };
 }
+// game rating per side: own decisions only, anchored to known ratings (PGN Elo, or your play rating)
+function gr(c) {
+  const accs = R.moves.map((m, i) => m.color === c && R.cls[i] && !['book', 'forced'].includes(R.cls[i].cls) ? K.moveAcc(R.cls[i].loss) : null);
+  const elo = x => { const v = parseInt(R.headers[x === 'w' ? 'WhiteElo' : 'BlackElo'], 10); return isFinite(v) && v > 0 ? v : null; };
+  const mine = S().elo ? S().elo.r : null;
+  const prior = elo(c) || (R.me === c && mine) || 1200; const opp = elo(c === 'w' ? 'b' : 'w');
+  return A.gameRating({ accs, prior, opp });
+}
 function render() {
   if (!R.fens.length) return;
   const i = R.cur; const fen = R.ex ? R.ex.fen : R.fens[i];
@@ -121,7 +129,7 @@ function render() {
   const pf = v => v == null ? '–' : Math.round(v);
   $('#sumgrid').innerHTML = `<span class="hd"></span><span class="hd" title="${W}">${W}</span><span class="hd" title="${B}">${B}</span>
     <span>Accuracy</span><span class="big n">${sm.acc.w ?? '–'}</span><span class="big n">${sm.acc.b ?? '–'}</span>
-    ${R.done ? `<span>Game rating</span><span class="n">${A.accElo(sm.acc.w) ?? '–'}</span><span class="n">${A.accElo(sm.acc.b) ?? '–'}</span>` : ''}
+    ${R.done ? `<span>Game rating</span><span class="n">${gr('w') ?? '–'}</span><span class="n">${gr('b') ?? '–'}</span>` : ''}
     ${R.done ? [['op', 'Opening'], ['mid', 'Middlegame'], ['end', 'Endgame']].filter(([k]) => sm.phase.w[k] != null || sm.phase.b[k] != null).map(([k, n]) => `<span class="mute">${n}</span><span class="n">${pf(sm.phase.w[k])}</span><span class="n">${pf(sm.phase.b[k])}</span>`).join('') : ''}
     ${done ? rows.filter(k => sm.counts.w[k] || sm.counts.b[k]).map(k => `<span>${A.clsChip(k)} ${CLS[k].t}</span><span class="n">${sm.counts.w[k] || 0}</span><span class="n">${sm.counts.b[k] || 0}</span>`).join('') : ''}`;
   // key moments

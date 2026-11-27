@@ -103,6 +103,19 @@ document.addEventListener('click', e => {
   bd.setDraw(!bd.drawMode); b.classList.toggle('on', bd.drawMode); b.setAttribute('aria-pressed', bd.drawMode);
   if (bd.drawMode) A.toast(matchMedia('(pointer: coarse)').matches ? 'Drag to draw arrows, tap a square to highlight it' : 'Drag to draw arrows, click a square to highlight it');
 });
+/* Game rating, chess.com style: how well you played compared with what's expected at your level.
+   1) accuracy over your own decisions only (book and forced moves don't count),
+   2) turned into a rating with a curve of typical accuracy by rating,
+   3) pulled toward your known rating in short games, and adjusted for the opponent's strength. */
+const ACC_R = [[50, 200], [65, 500], [72, 800], [77, 1000], [81, 1300], [85, 1600], [88, 1900], [91, 2200], [94, 2600], [97, 2950], [100, 3200]];
+const lerp = (T, x) => { if (x <= T[0][0]) return T[0][1]; for (let i = 1; i < T.length; i++) if (x <= T[i][0]) { const [a0, e0] = T[i - 1], [a1, e1] = T[i]; return e0 + (x - a0) / (a1 - a0) * (e1 - e0); } return T[T.length - 1][1]; };
+A.gameRating = ({ accs, prior = 1200, opp = null }) => {
+  const a = (accs || []).filter(x => x != null); if (a.length < 6) return null;
+  const acc = K.gameAcc(a); const fromMoves = lerp(ACC_R, acc);
+  const w0 = 14, n = a.length; let r = (prior * w0 + fromMoves * n) / (w0 + n);
+  if (opp != null) r += Math.max(-200, Math.min(200, (opp - prior) * .2));
+  return Math.max(100, Math.min(3200, Math.round(r / 10) * 10));
+};
 // rough game rating from accuracy (like the big sites' "game rating"); short games are noisy
 A.accElo = acc => { if (acc == null) return null; const P = [[0, 100], [40, 250], [50, 400], [60, 700], [70, 1000], [80, 1400], [85, 1650], [90, 2000], [95, 2500], [98, 2900], [100, 3100]]; for (let i = 1; i < P.length; i++) if (acc <= P[i][0]) { const [a0, e0] = P[i - 1], [a1, e1] = P[i]; return Math.round((e0 + (acc - a0) / (a1 - a0) * (e1 - e0)) / 10) * 10; } return 3100; };
 A.toast = msg => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); };

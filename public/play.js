@@ -241,7 +241,7 @@ async function coachMove(fen, u, color, ply) {
   let text = good ? (lines[0] || '') : lines.filter(t => !/^Better was/.test(t)).slice(0, 2).join(' ');
   if (!good && pre.lines[0] && pre.lines[0].move) text += ` Better was ${K.moveName(fen, pre.lines[0].move)}.${P.mode === 'bot' ? ' Use Takeback to try again.' : ''}`;
   P.coach = { ply, cls: cl.cls, sq: u.slice(2, 4), head, text, good };
-  P.coachLog[ply] = cl.cls; P.coachAcc[ply] = ['book', 'forced'].includes(cl.cls) ? 100 : K.moveAcc(cl.loss);
+  P.coachLog[ply] = cl.cls; P.coachAcc[ply] = ['book', 'forced'].includes(cl.cls) ? null : K.moveAcc(cl.loss);
   if (P.over) showRatings();
   drawCoach(); render();
 }
@@ -256,6 +256,7 @@ function drawCoach() {
 $('#coachBtn').onclick = () => { const u = A.ui(); u.coach = u.coach === false; K.save(); $('#coachBtn').classList.toggle('on', u.coach !== false); if (u.coach !== false) warmCoach(); drawCoach(); render(); };
 /* ---------- ratings at the end of a game ---------- */
 function myAcc() { const a = P.coachAcc.filter(x => x != null); return a.length >= 4 ? K.gameAcc(a) : null; }
+function myGameRating() { const s = S(); const prior = s.elo ? s.elo.r - (P.eloDelta || 0) : 1000; return A.gameRating({ accs: P.coachAcc, prior, opp: botObj().r }); }
 function applyElo(res) {
   if (P.mode !== 'bot') return;
   const s = S(); s.elo = s.elo || { r: 1000, n: 0, hist: [] };
@@ -267,9 +268,9 @@ function applyElo(res) {
 function showRatings() {
   const el = $('#overRatings'); if (!el) return;
   if (P.mode !== 'bot') { el.hidden = true; return; }
-  const acc = myAcc(); const gr = A.accElo(acc); const s = S(); const d = P.eloDelta;
+  const acc = myAcc(); const gr = myGameRating(); const s = S(); const d = P.eloDelta;
   el.hidden = false;
-  el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '…'}</b><span>${acc != null ? `${acc}% accuracy` : 'Calculating…'}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${esc(botObj().n)} (${botObj().r})</span></div>`;
+  el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '–'}</b><span>${gr == null ? (P.coachAcc.filter(x => x != null).length < 6 ? 'Too short to rate' : 'Calculating…') : `${acc}% accuracy`}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${esc(botObj().n)} (${botObj().r})</span></div>`;
 }
 function coachSummary() {
   const log = P.coachLog.filter(Boolean); if (!log.length) return '';
