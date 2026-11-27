@@ -313,13 +313,28 @@ A.material = (fen, color) => {
   return html + (lead > 0 ? `<em>+${lead}</em>` : '');
 };
 A.phaseOf = (ply, fen) => { if (ply < 24) return 'op'; return K.nonPawn(new Chess(fen)) <= 20 ? 'end' : 'mid'; };
-A.tick = () => { const s = S(); s.days = s.days || {}; const d = today(); s.days[d] = (s.days[d] || 0) + 1; renderMe(); };
+A.tick = () => { const s = S(); s.days = s.days || {}; const d = today(); s.days[d] = (s.days[d] || 0) + 1; try { A.freezes(); } catch (e) { } renderMe(); };
+const dkey = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 A.streak = () => {
-  const days = S().days || {}; let n = 0; const t = new Date();
-  const key = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-  if (!days[key(t)]) t.setDate(t.getDate() - 1);
-  while (days[key(t)]) { n++; t.setDate(t.getDate() - 1); }
+  const s = S(), days = s.days || {}, used = (s.freeze && s.freeze.used) || {}; let n = 0; const t = new Date();
+  const on = k => days[k] || used[k];
+  if (!on(dkey(t))) t.setDate(t.getDate() - 1);
+  while (on(dkey(t))) { if (days[dkey(t)]) n++; t.setDate(t.getDate() - 1); }
   return n;
+};
+// Streak freezes: a 7-day streak earns one (hold up to 2, 3 with Plus); a missed day spends one automatically.
+A.freezes = () => {
+  const s = S(); const f = s.freeze = s.freeze || { n: 0, used: {}, earned: 0 }; const days = s.days || {};
+  const cap = A.plus && A.plus() && A.paywall && A.paywall() ? 3 : 2; let changed = false;
+  for (let back = 2; back >= 1; back--) {   // cover yesterday (and the day before) if the streak would otherwise break
+    const miss = new Date(); miss.setDate(miss.getDate() - back); const mk = dkey(miss);
+    const prev = new Date(miss); prev.setDate(prev.getDate() - 1); const pk = dkey(prev);
+    if (!days[mk] && !f.used[mk] && (days[pk] || f.used[pk]) && f.n > 0) { f.used[mk] = 1; f.n--; changed = true; f.saved = mk; }
+  }
+  const st = A.streak(), ms = Math.floor(st / 7) * 7;
+  if (ms > (f.earned || 0) && ms > 0) { f.earned = ms; if (f.n < cap) { f.n++; changed = true; f.gained = Date.now(); } }
+  for (const k of Object.keys(f.used)) if (k < dkey(new Date(Date.now() - 120 * 864e5))) delete f.used[k];
+  if (changed) K.save(); return f;
 };
 A.due = () => { const now = Date.now(); return S().drills.filter(d => d.due <= now); };
 function renderMe() {

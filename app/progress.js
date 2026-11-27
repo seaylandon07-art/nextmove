@@ -27,7 +27,7 @@ function render() {
   $('#phases').innerHTML = [['op', 'Opening'], ['mid', 'Middlegame'], ['end', 'Endgame']].map(([k, n]) => `<div class="hb"><span>${n}</span><div><i style="width:${rate(k) / mx * 100}%"></i></div><b>${nph[k] ? rate(k).toFixed(1) + '%' : '–'}</b></div>`).join('') + `<p class="small mute">Share of your moves that were a mistake, miss or blunder${revs.length ? `, across ${revs.length} game${revs.length === 1 ? '' : 's'}` : ' (needs reviewed games)'}.</p>`;
   const boxes = [0, 0, 0, 0, 0, 0]; s.drills.forEach(d => boxes[d.box]++);
   $('#boxes').innerHTML = boxes.map((n, i) => `<div class="hb"><span>${['New / missed', '1 day', '3 days', '1 week', '16 days', 'Mastered'][i]}</span><div><i style="width:${n / Math.max(1, ...boxes) * 100}%"></i></div><b>${n}</b></div>`).join('');
-  renderWeek(); renderHeat();
+  renderWeek(); renderHeat(); renderOpenings();
   $('#syncNote').textContent = K.syncState() === 'synced' ? 'Synced across your devices.' : 'Saved in this browser.';
 }
 /* ---------- weekly report: the last 7 days against the 7 before ---------- */
@@ -72,6 +72,37 @@ function renderWeek() {
     : accW != null && accP != null && accW > accP ? 'Your accuracy went up this week. Keep the same routine: a game, its review, then your drills.'
     : 'Review your games with your side set so the drills and this report can learn from them.';
   $('#weekFocus').textContent = tip;
+}
+/* ---------- opening explorer: how you do in each opening you actually play ---------- */
+function gameOpening(g) {
+  if (g.op !== undefined) return g.op;
+  try { const c = new Chess(); if (!c.load_pgn(g.pgn || '', { sloppy: true })) return g.op = null;
+    const h = c.history(); const r = new Chess(); const fens = [r.fen()]; for (const m of h.slice(0, 24)) { r.move(m); fens.push(r.fen()); }
+    g.op = K.openingName(fens) || null; } catch (e) { g.op = null; }
+  return g.op;
+}
+function renderOpenings() {
+  const s = S(); const rows = {};
+  const accBy = {}; for (const r of s.reviews) if (r.gid && r.me) accBy[r.gid] = A.ccAcc(r.me === 'w' ? r.accW : r.accB);
+  for (const g of s.games) {
+    if (!g.me || !g.result || g.result === '*') continue;
+    const name = gameOpening(g); if (!name) continue; const fam = name.split(':')[0].trim();
+    const k = fam + '|' + g.me; const o = rows[k] = rows[k] || { fam, side: g.me, n: 0, w: 0, d: 0, l: 0, acc: [], vars: {} };
+    o.n++; const won = (g.result === '1-0') === (g.me === 'w'); if (g.result === '1/2-1/2') o.d++; else if (won) o.w++; else o.l++;
+    if (accBy[g.id] != null) o.acc.push(accBy[g.id]); o.vars[name] = (o.vars[name] || 0) + 1;
+  }
+  const list = Object.values(rows).sort((a, b) => b.n - a.n); const sc = o => (o.w + o.d / 2) / o.n;
+  if (!list.length) { $('#opTab').innerHTML = '<p class="small mute">Finish a few games (with your side set) and your openings show up here: how often you play each one, your score, and your accuracy.</p>'; $('#opIns').textContent = ''; $('#opNote').textContent = ''; return; }
+  const lock = A.plus && !A.plus(), FREE_ROWS = 3;
+  const row = (o, i) => { const acc = o.acc.length ? Math.round(o.acc.reduce((a, b) => a + b, 0) / o.acc.length) : null; const top = Object.entries(o.vars).sort((a, b) => b[1] - a[1])[0][0];
+    return `<div class="opr${lock && i >= FREE_ROWS ? ' locked' : ''}" title="${esc(top)}"><span><b>${esc(o.fam)}</b><small>${top !== o.fam ? esc(top.split(':').slice(1).join(':').trim()) : ''}</small></span><span class="side small">${o.side === 'w' ? 'as White' : 'as Black'}</span><span class="n">${o.n}</span><span class="wdl" title="${o.w} won · ${o.d} drawn · ${o.l} lost"><i style="width:${o.w / o.n * 100}%"></i><i style="width:${o.d / o.n * 100}%"></i><i style="width:${o.l / o.n * 100}%"></i></span><span class="n"><b>${Math.round(sc(o) * 100)}%</b></span><span class="n acc">${acc ?? '–'}</span></div>`; };
+  $('#opTab').innerHTML = `<div class="opr h"><span>Opening</span><span class="side">Side</span><span class="n">Games</span><span>Won · drawn · lost</span><span class="n">Score</span><span class="n acc">Accuracy</span></div>` + list.slice(0, 12).map(row).join('') + (lock && list.length > FREE_ROWS ? `<div class="oplock"><span>See all ${list.length} of your openings, with your score and accuracy in each.</span><button class="btn sec" onclick="A.showPlus('menu')">See Plus</button></div>` : '');
+  $('#opNote').textContent = `${list.length} opening${list.length === 1 ? '' : 's'} from ${list.reduce((a, o) => a + o.n, 0)} games`;
+  // one insight: the opening that costs you the most points, and a course to fix it
+  const weak = list.filter(o => o.n >= 3).sort((a, b) => sc(a) - sc(b))[0], strong = list.filter(o => o.n >= 3).sort((a, b) => sc(b) - sc(a))[0];
+  const course = weak && A.COURSES.find(c => c.name.toLowerCase().startsWith(weak.fam.toLowerCase().replace(/ (defen[cs]e|opening|game|attack|gambit)$/i, '')));
+  $('#opIns').innerHTML = weak && sc(weak) < .45 ? `You score <b>${Math.round(sc(weak) * 100)}%</b> in the ${esc(weak.fam)} as ${weak.side === 'w' ? 'White' : 'Black'}, your weakest opening.${course ? ` <button class="btn sec" onclick="A.startTrain('open')">Study the ${esc(course.name)}</button>` : ''}` : strong && sc(strong) >= .6 ? `The ${esc(strong.fam)} is working: you score <b>${Math.round(sc(strong) * 100)}%</b> with it as ${strong.side === 'w' ? 'White' : 'Black'}.` : '';
+  K.save();
 }
 function renderHeat() {
   const s = S(); const cnt = {}; for (const d of s.drills) { const t = (d.played || '').slice(2, 4); if (t) cnt[t] = (cnt[t] || 0) + 1; }

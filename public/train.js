@@ -13,10 +13,11 @@ const BOX_DAYS = [0, 1, 3, 7, 16, 35];
 /* ---------- hub ---------- */
 function renderHub() {
   const s = S(); s.best = s.best || {};
-  const done = (s.days || {})[A.today()] || 0, st = A.streak(), due = A.due().length;
+  const fz = A.freezes(); const done = (s.days || {})[A.today()] || 0, st = A.streak(), due = A.due().length;
+  if (fz.saved && fz.saved !== s.freezeSeen) { s.freezeSeen = fz.saved; setTimeout(() => A.toast('A streak freeze saved your streak for a missed day.'), 600); }
   const pct = Math.min(1, done / A.GOAL), C = 2 * Math.PI * 24;
   $('#today').innerHTML = `<svg viewBox="0 0 58 58" class="ring"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe8bf"/><stop offset="1" stop-color="#d9a64f"/></linearGradient></defs><circle cx="29" cy="29" r="24" class="rb"/><circle cx="29" cy="29" r="24" class="rf" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/><text x="29" y="36.5" text-anchor="middle">${Math.min(done, 99)}</text></svg>
-    <div><h1>${done >= A.GOAL ? 'Daily goal done' : 'Train'}</h1><p class="mute">${done >= A.GOAL ? 'Anything more is a bonus.' : `${A.GOAL - done} more reps to hit today’s goal.`} ${st ? `${st}-day streak` : 'No streak yet'}, ${due ? `${due} drill${due === 1 ? '' : 's'} due` : 'no drills due'}.</p></div>
+    <div><h1>${done >= A.GOAL ? 'Daily goal done' : 'Train'}</h1><p class="mute">${done >= A.GOAL ? 'Anything more is a bonus.' : `${A.GOAL - done} more reps to hit today’s goal.`} ${st ? `${st}-day streak` : 'No streak yet'}${fz.n ? ` (${fz.n} freeze${fz.n === 1 ? '' : 's'} ready)` : ''}, ${due ? `${due} drill${due === 1 ? '' : 's'} due` : 'no drills due'}.</p></div>
     <button class="btn" data-start="${due ? 'drills' : 'tactics'}">${due ? 'Start with drills' : 'Start with puzzles'}</button>`;
   const mastered = s.drills.filter(x => x.box >= 4).length;
   $('#hDrills').textContent = s.drills.length ? `${due} due` : 'empty';
