@@ -344,6 +344,20 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
   .sumgrid .big{font-size:30px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+.navr{grid-template-columns:repeat(5,1fr) .8fr}
+.navr button.on,[data-draw].on{background:rgba(241,207,134,.14);box-shadow:inset 0 0 0 1px rgba(241,207,134,.5);color:var(--acc2)}
+.pnav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 10px 0}
+.pnav button{min-height:38px;border-radius:12px;border:0;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer;display:grid;place-items:center;color:var(--ink);transition:background .2s,transform .15s var(--out)}
+.pnav button:hover{background:var(--panel2)}.pnav button:active{transform:scale(.94)}
+.pnav button:disabled{opacity:.35;cursor:default;transform:none}
+.pnav.viewing [data-nav=last]{background:linear-gradient(170deg,#f9e5b8,#e2b45f);color:var(--acc-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.board.drawing{box-shadow:0 0 0 2px rgba(241,207,134,.75),0 40px 70px -30px rgba(0,0,0,.85),0 0 90px -30px rgba(241,207,134,.3)}
+.board.viewing .sqs{filter:saturate(.75) brightness(.96)}
+.sq.lpress::before{content:'';position:absolute;inset:0;background:rgba(241,207,134,.35);animation:dotIn .25s var(--spring)}
+.sq.um1::before{content:'';position:absolute;inset:0;background:rgba(255,92,92,.55)}
+.sq.um2::before{content:'';position:absolute;inset:0;background:rgba(111,211,160,.55)}
+.sq.um3::before{content:'';position:absolute;inset:0;background:rgba(110,170,255,.55)}
+.sq.um4::before{content:'';position:absolute;inset:0;background:rgba(241,190,90,.6)}
 </style>
 </head>
 <body>
@@ -379,6 +393,7 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/></symbol>
   <symbol id="i-knight" viewBox="0 0 24 24"><path d="M7 21h11M8 18h9c0-4-1-6-2-8l1-3-3 1-3-4-1 3-3 3 1 3 3-1-2 6z"/></symbol>
   <symbol id="logo" viewBox="0 0 24 24"><circle cx="7" cy="19" r="2.2" fill="currentColor"/><path d="M7 15.5V7.5h9" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 3.8l4.2 3.7-4.2 3.7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
@@ -428,11 +443,13 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
     <div id="ingame" hidden>
       <div class="ph"><span class="status"><i class="dot" id="pdot"></i><span id="pstatus">White to move</span></span><span class="sp mute small" id="popen"></span></div>
       <ol class="sheet" id="pmoves"></ol>
+      <div class="pnav" id="pnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Back to the game"><svg class="i"><use href="#i-last"/></svg></button></div>
       <div class="sec" id="overBox" hidden><div class="result"><b id="overText">Game over</b><div class="row"><button class="btn" id="reviewThis">Review game</button><button class="btn sec" id="rematchBtn">Rematch</button><button class="btn sec" id="newBtn2">New game</button></div></div></div>
       <div class="tools">
         <button class="btn" id="hintBtn"><svg class="i"><use href="#i-bulb"/></svg>Hint</button>
         <button class="btn" id="undoBtn"><svg class="i"><use href="#i-undo"/></svg>Takeback</button>
         <button class="btn" id="flipBtn"><svg class="i"><use href="#i-flip"/></svg>Flip</button>
+        <button class="btn" id="drawBtnP" data-draw data-board="#play .bd" aria-pressed="false"><svg class="i"><use href="#i-pen"/></svg>Draw</button>
         <button class="btn" id="evalBtn"><svg class="i"><use href="#i-eye"/></svg>Eval</button>
         <button class="btn" id="resignBtn"><svg class="i"><use href="#i-flag"/></svg>Resign</button>
         <button class="btn" id="newBtn"><svg class="i"><use href="#i-plus"/></svg>New</button>
@@ -446,7 +463,7 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
   <div class="stage">
     <div class="bwrap"><div class="evalbar"><i></i><span></span></div><div class="bd"></div></div>
     <div class="fig" id="graphWrap" title="Tap to jump"><svg id="graph"></svg></div>
-    <div class="navr" id="rnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Last move"><svg class="i"><use href="#i-last"/></svg></button><button data-nav="flip" aria-label="Flip board"><svg class="i"><use href="#i-flip"/></svg></button></div>
+    <div class="navr" id="rnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Last move"><svg class="i"><use href="#i-last"/></svg></button><button data-nav="flip" aria-label="Flip board"><svg class="i"><use href="#i-flip"/></svg></button><button data-draw aria-label="Draw arrows" aria-pressed="false"><svg class="i"><use href="#i-pen"/></svg></button></div>
   </div>
   <aside class="panel">
     <div id="rInput">
@@ -483,7 +500,7 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
 <section class="view" id="analysis" hidden>
   <div class="stage">
     <div class="bwrap"><div class="evalbar"><i></i><span></span></div><div class="bd"></div></div>
-    <div class="navr" id="anav"><button data-nav="first" aria-label="Start"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Back"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Forward"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="End"><svg class="i"><use href="#i-last"/></svg></button><button data-nav="flip" aria-label="Flip board"><svg class="i"><use href="#i-flip"/></svg></button></div>
+    <div class="navr" id="anav"><button data-nav="first" aria-label="Start"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Back"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Forward"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="End"><svg class="i"><use href="#i-last"/></svg></button><button data-nav="flip" aria-label="Flip board"><svg class="i"><use href="#i-flip"/></svg></button><button data-draw aria-label="Draw arrows" aria-pressed="false"><svg class="i"><use href="#i-pen"/></svg></button></div>
   </div>
   <aside class="panel">
     <div class="ph"><h2>Analysis</h2><span class="sp mute small" id="aDepth"></span><label class="chk small" style="margin-left:10px"><input type="checkbox" id="aEngine" checked> Engine</label></div>

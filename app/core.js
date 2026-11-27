@@ -404,7 +404,7 @@ class Board {
       if (this.sel === s) cl.push('sel');
       if (checkSq === s) cl.push('chk');
       if (this.marks[s]) cl.push(this.marks[s]);
-      if (this.uMarks && this.uMarks[s]) cl.push('umark');
+      if (this.uMarks && this.uMarks[s]) cl.push('um' + this.uMarks[s]);
       const d = this.dests.find(t => t.to === s);
       if (d) cl.push(P[s] ? 'cap' : 'dot');
       let inner = '';
@@ -443,8 +443,20 @@ class Board {
   down(e) {
     if (!this.promo.hidden) return;
     const sq = this.sqAt(e); if (!sq) return;
-    if (e.button === 2) { this.rdown = sq; e.preventDefault(); return; }
+    if (e.button === 2 || this.drawMode) { this.rdown = sq; this.rmod = e; try { this.host.setPointerCapture(e.pointerId); } catch (er) { } e.preventDefault(); return; }
     if (this.uArrows && (this.uArrows.length || Object.keys(this.uMarks || {}).length)) { this.uArrows = []; this.uMarks = {}; this.render(); }
+    // touch: press and hold a square to start drawing an arrow (or a highlight if released in place)
+    clearTimeout(this.lp); this.lpOn = false;
+    if (e.pointerType !== 'mouse') {
+      const x0 = e.clientX, y0 = e.clientY; this.lpStart = [x0, y0];
+      this.lp = setTimeout(() => {
+        if (this.drag && this.drag.moved) return;
+        this.cancelDrag(); this.sel = null; this.dests = []; this.render();
+        this.rdown = sq; this.rmod = null; this.lpOn = true;
+        const el = this.sqs.querySelector(`[data-sq="${sq}"]`); if (el) el.classList.add('lpress');
+        if (navigator.vibrate) try { navigator.vibrate(10); } catch (er) { }
+      }, 380);
+    }
     if (this.o.onSquare && this.o.onSquare(sq)) return;
     if (this.sel && this.dests.some(d => d.to === sq)) { this.tryMove(this.sel, sq); return; }
     if (this.canMove(sq)) {
@@ -460,14 +472,20 @@ class Board {
     } else if (this.sel) { this.sel = null; this.dests = []; this.render(); }
   }
   posGhost(e) { if (!this.ghost) return; const w = parseFloat(this.ghost.style.width); this.ghost.style.transform = `translate(${e.clientX - w / 2}px,${e.clientY - w / 2}px) scale(1.16)`; }
-  moveG(e) { if (!this.drag) return; if (Math.hypot(e.clientX - this.drag.x, e.clientY - this.drag.y) > 4) this.drag.moved = true; this.posGhost(e); }
+  moveG(e) { if (this.lpStart && Math.hypot(e.clientX - this.lpStart[0], e.clientY - this.lpStart[1]) > 8 && !this.lpOn) clearTimeout(this.lp); if (!this.drag) return; if (Math.hypot(e.clientX - this.drag.x, e.clientY - this.drag.y) > 4) this.drag.moved = true; this.posGhost(e); }
+  setDraw(on) { this.drawMode = !!on; this.host.classList.toggle('drawing', this.drawMode); this.sel = null; this.dests = []; this.render(); }
+  clearDrawings() { this.uArrows = []; this.uMarks = {}; this.render(); }
   cancelDrag() { if (this.ghost) this.ghost.remove(); this.ghost = null; this.drag = null; }
   up(e) {
-    if (e.button === 2 && this.rdown) {
-      const sq = this.sqAt(e), a = this.rdown; this.rdown = null; if (!sq) return;
+    clearTimeout(this.lp); this.lpStart = null;
+    if ((e.button === 2 || this.drawMode || this.lpOn) && this.rdown) {
+      const sq = this.sqAt(e), a = this.rdown, m = this.rmod || e; this.rdown = null; this.lpOn = false; if (!sq) { this.render(); return; }
+      // colours like the big sites: plain = orange, Shift = green, Ctrl = red, Alt = blue
+      const k = m.shiftKey ? 2 : m.ctrlKey || m.metaKey ? 1 : m.altKey ? 3 : 0;
+      const AC = ['#f2a33a', '#ff5c5c', '#5fd39a', '#6aa8ff'], MK = [1, 1, 2, 3];
       this.uArrows = this.uArrows || []; this.uMarks = this.uMarks || {};
-      if (sq === a) { if (this.uMarks[sq]) delete this.uMarks[sq]; else this.uMarks[sq] = 1; }
-      else { const i = this.uArrows.findIndex(x => x.from === a && x.to === sq); if (i >= 0) this.uArrows.splice(i, 1); else this.uArrows.push({ from: a, to: sq, c: '#f2a33a', o: .78 }); }
+      if (sq === a) { if (this.uMarks[sq]) delete this.uMarks[sq]; else this.uMarks[sq] = MK[k]; }
+      else { const i = this.uArrows.findIndex(x => x.from === a && x.to === sq); if (i >= 0) this.uArrows.splice(i, 1); else this.uArrows.push({ from: a, to: sq, c: AC[k], o: .82 }); }
       this.render(); return;
     }
     if (!this.drag) return;

@@ -13,10 +13,10 @@ const BOTS = [
   { id: 'sofia', n: 'Sofia', r: 2100, bio: 'Expert — punishes every slip', elo: 2100, depth: 14, book: true },
   { id: 'sf', n: 'Stockfish', r: 3000, bio: 'Full strength. Good luck.', depth: 18, icon: 'i-cpu' }];
 const TCS = { none: null, '1+0': [60, 0], '3+2': [180, 2], '5+3': [300, 3], '10+0': [600, 0] };
-const P = { mode: 'bot', bot: 3, color: 'w', tc: 'none', open: 'auto', g: null, me: 'w', over: false, thinking: false, clocks: null, showEval: false, evalLine: null, line: null, online: null };
+const P = { view: null, seenN: 0, mode: 'bot', bot: 3, color: 'w', tc: 'none', open: 'auto', g: null, me: 'w', over: false, thinking: false, clocks: null, showEval: false, evalLine: null, line: null, online: null };
 A.P = P;
 const pb = A.board($('#play .bd'), {
-  movable: () => !P.g || P.over || P.thinking ? null : P.mode === 'local' ? 'both' : (P.mode === 'online' && !P.online?.started) ? null : P.me,
+  movable: () => !P.g || P.over || P.thinking || P.view != null ? null : P.mode === 'local' ? 'both' : (P.mode === 'online' && !P.online?.started) ? null : P.me,
   legal: A.legalFor(() => P.g.fen()),
   onMove: (f, t, pr) => userMove(f, t, pr)
 });
@@ -77,15 +77,28 @@ function startGame(opts = {}) {
 }
 $('#startGame').onclick = () => startGame();
 function render(anim) {
-  const g = P.g; if (!g) { pb.set(K.START); drawPlayers(); return; }
-  const h = g.history({ verbose: true }); const last = h[h.length - 1];
-  pb.set(g.fen(), { last: last ? last.from + last.to : null, arrows: P.hint ? [P.hint] : [], anim });
-  drawPlayers();
-  const ml = []; for (let i = 0; i < h.length; i += 2) ml.push(`<li><span>${i / 2 + 1}</span><b>${A.fig(h[i].san, 'w')}</b><b>${h[i + 1] ? A.fig(h[i + 1].san, 'b') : ''}</b></li>`);
-  $('#pmoves').innerHTML = ml.join(''); $('#pmoves').scrollTop = 1e6;
+  const g = P.g; if (!g) { P.view = null; pb.host.classList.remove('viewing'); pb.set(K.START); drawPlayers(); $('#pnav') && $('#pnav').classList.remove('viewing'); return; }
+  const h = g.history({ verbose: true }); const n = h.length;
+  // any new move (yours, the bot's, your friend's) or a takeback brings you back to the live position
+  if (n !== P.seenN) { P.seenN = n; P.view = null; }
+  if (P.view != null && P.view >= n) P.view = null;
+  const v = P.view == null ? n : P.view, live = v === n;
+  let fen = g.fen();
+  if (!live) { const c = new Chess(); for (let i = 0; i < v; i++) c.move(h[i].san); fen = c.fen(); }
+  const last = h[v - 1];
+  pb.set(fen, { last: last ? last.from + last.to : null, arrows: live && P.hint ? [P.hint] : [], anim });
+  pb.host.classList.toggle('viewing', !live);
+  drawPlayers(fen);
+  const ml = []; for (let i = 0; i < n; i += 2) ml.push(`<li><span>${i / 2 + 1}</span><b class="mv${v === i + 1 ? ' cur' : ''}" data-ply="${i + 1}">${A.fig(h[i].san, 'w')}</b><b class="mv${v === i + 2 ? ' cur' : ''}" data-ply="${i + 2}">${h[i + 1] ? A.fig(h[i + 1].san, 'b') : ''}</b></li>`);
+  $('#pmoves').innerHTML = ml.join('');
+  if (live) $('#pmoves').scrollTop = 1e6; else { const cur = $('#pmoves .cur'); if (cur) cur.scrollIntoView({ block: 'nearest' }); }
+  const nav = $('#pnav'); nav.classList.toggle('viewing', !live);
+  nav.querySelector('[data-nav=first]').disabled = nav.querySelector('[data-nav=prev]').disabled = v === 0;
+  nav.querySelector('[data-nav=next]').disabled = nav.querySelector('[data-nav=last]').disabled = live;
   let st = P.over ? P.result : g.in_check() ? 'Check' : (g.turn() === 'w' ? 'White' : 'Black') + ' to move';
   if (P.thinking) st = `${botObj().n} is thinking…`;
   if (P.mode === 'online' && !P.over) st = P.online && P.online.started ? (g.turn() === P.me ? 'Your move' : 'Their move') : 'Waiting for opponent';
+  if (!live) st = `Looking at move ${Math.ceil(v / 2)}${v === 0 ? '' : v % 2 ? '' : ' (Black)'}`.replace('move 0', 'the start');
   $('#pstatus').textContent = st;
   $('#pdot').className = 'dot' + (!P.over && (P.thinking || (P.mode === 'online' && g.turn() !== P.me)) ? ' live' : '');
   const op = K.openingName([K.START, ...(() => { const c = new Chess(); return h.map(m => { c.move(m.san); return c.fen(); }); })()]);
@@ -94,10 +107,10 @@ function render(anim) {
   A.setEvalBar($('#play .evalbar'), P.evalLine, pb.orient);
   drawClocks();
 }
-function drawPlayers() {
+function drawPlayers(viewFen) {
   const n = P.g ? names() : { w: 'White', b: 'Black' };
   const top = pb.orient === 'w' ? 'b' : 'w', bot = top === 'w' ? 'b' : 'w';
-  const fen = P.g ? P.g.fen() : K.START;
+  const fen = viewFen || (P.g ? P.g.fen() : K.START);
   for (const [id, c] of [['#plTop', top], ['#plBot', bot]]) {
     const el = $(id); el.dataset.c = c;
     el.querySelector('.nm').textContent = n[c];
@@ -198,6 +211,21 @@ $('#undoBtn').onclick = () => {
   render();
 };
 $('#flipBtn').onclick = () => { pb.flip(); render(); };
+// step through the game while it's being played; making a move needs the live position
+function goPly(to) {
+  if (!P.g) return; const n = P.g.history().length; const cur = P.view == null ? n : P.view;
+  to = Math.max(0, Math.min(n, to)); if (to === cur) return;
+  P.view = to >= n ? null : to; render(to === cur + 1);
+  const h = P.g.history({ verbose: true }); if (to === cur + 1 && h[to - 1]) A.sound(h[to - 1].captured ? 'capture' : 'move');
+}
+$('#pnav').onclick = e => { const b = e.target.closest('[data-nav]'); if (!b || !P.g) return; const n = P.g.history().length, v = P.view == null ? n : P.view; const k = b.dataset.nav; goPly(k === 'first' ? 0 : k === 'prev' ? v - 1 : k === 'next' ? v + 1 : n); };
+$('#pmoves').onclick = e => { const b = e.target.closest('[data-ply]'); if (b && b.textContent) goPly(+b.dataset.ply); };
+document.addEventListener('keydown', e => {
+  if (A.cur() !== 'play' || !P.g || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  const n = P.g.history().length, v = P.view == null ? n : P.view;
+  const to = { ArrowLeft: v - 1, ArrowRight: v + 1, ArrowUp: 0, ArrowDown: n, Home: 0, End: n }[e.key];
+  if (to != null) { e.preventDefault(); goPly(to); }
+});
 $('#evalBtn').onclick = () => { P.showEval = !P.showEval; $('#evalBtn').classList.toggle('on', P.showEval); if (P.showEval && P.g) K.analyse(P.g.fen(), 12).then(r => { P.evalLine = r.lines[0]; render(); }); render(); };
 $('#resignBtn').onclick = () => {
   if (!P.g || P.over) return;

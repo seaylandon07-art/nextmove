@@ -76,6 +76,13 @@ A.moveSound = (m, ch) => { if (!m) return; if (A.ui().sound && navigator.vibrate
 
 /* ---------- small helpers ---------- */
 A.flash = (host, kind) => { if (!host) return; host.classList.remove('fx-ok', 'fx-no'); void host.offsetWidth; host.classList.add(kind === 'ok' ? 'fx-ok' : 'fx-no'); clearTimeout(host._fx); host._fx = setTimeout(() => host.classList.remove('fx-ok', 'fx-no'), 900); };
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-draw]'); if (!b) return;
+  const host = b.dataset.board ? $(b.dataset.board) : b.closest('.view').querySelector('.bd');
+  const bd = A.boards.find(x => x.host === host); if (!bd) return;
+  bd.setDraw(!bd.drawMode); b.classList.toggle('on', bd.drawMode); b.setAttribute('aria-pressed', bd.drawMode);
+  if (bd.drawMode) A.toast(matchMedia('(pointer: coarse)').matches ? 'Drag to draw arrows, tap a square to highlight it' : 'Drag to draw arrows, click a square to highlight it');
+});
 A.toast = msg => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); };
 A.clsChip = cls => { const c = CLS[cls]; return c ? `<em class="ic" style="background:${c.c}" title="${c.t}">${c.i}</em>` : ''; };
 A.legalFor = fenGetter => sq => { const c = new Chess(fenGetter()); return c.moves({ square: sq, verbose: true }).map(m => ({ to: m.to })); };
