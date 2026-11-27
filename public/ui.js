@@ -20,7 +20,7 @@ function applyUI() {
   A.boards.forEach(b => { b.noAnim = !u.anim; b.render(); });
 }
 A.applyUI = applyUI;
-const BOARDS = [['blue', '#dee3e6', '#8ca2ad'], ['green', '#ebecd0', '#739552'], ['walnut', '#f0d9b5', '#b58863'], ['graphite', '#d4d4cf', '#7b7e85'], ['night', '#9aa4b1', '#4f5b6b']];
+const BOARDS = [['blue', '#e8e3d6', '#7a84ab'], ['green', '#ebecd0', '#739552'], ['walnut', '#f0d9b5', '#b58863'], ['graphite', '#d4d4cf', '#7b7e85'], ['night', '#9aa4b1', '#4f5b6b']];
 function renderSettings() {
   const u = A.ui();
   $('#swatches').innerHTML = BOARDS.map(([n, a, b]) => `<button class="sw${u.board === n ? ' on' : ''}" data-b="${n}" style="--a:${a};--b:${b}" aria-label="${n} board"><i></i><i></i><i></i><i></i></button>`).join('');
@@ -72,9 +72,10 @@ A.sound = (kind) => {
     else if (kind === 'bad') { tone(t, 220, .08, .25); }
   } catch (e) { }
 };
-A.moveSound = (m, ch) => { if (!m) return; A.sound(ch && ch.game_over() ? 'end' : ch && ch.in_check() ? 'check' : m.captured ? 'capture' : 'move'); };
+A.moveSound = (m, ch) => { if (!m) return; if (A.ui().sound && navigator.vibrate) try { navigator.vibrate(m.captured ? 14 : 7); } catch (e) { } A.sound(ch && ch.game_over() ? 'end' : ch && ch.in_check() ? 'check' : m.captured ? 'capture' : 'move'); };
 
 /* ---------- small helpers ---------- */
+A.flash = (host, kind) => { if (!host) return; host.classList.remove('fx-ok', 'fx-no'); void host.offsetWidth; host.classList.add(kind === 'ok' ? 'fx-ok' : 'fx-no'); clearTimeout(host._fx); host._fx = setTimeout(() => host.classList.remove('fx-ok', 'fx-no'), 900); };
 A.toast = msg => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); };
 A.clsChip = cls => { const c = CLS[cls]; return c ? `<em class="ic" style="background:${c.c}" title="${c.t}">${c.i}</em>` : ''; };
 A.legalFor = fenGetter => sq => { const c = new Chess(fenGetter()); return c.moves({ square: sq, verbose: true }).map(m => ({ to: m.to })); };
@@ -177,13 +178,23 @@ A.cur = () => { const v = location.hash.slice(1); return VIEWS.includes(v) ? v :
 function route() {
   const v = A.cur();
   $$('main .view').forEach(s => { if (VIEWS.includes(s.id)) s.hidden = s.id !== v; });
-  $$('.nav a, .tabbar a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + v));
+  $$('.nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + v));
+  placePill();
   Object.entries(A.views).forEach(([k, o]) => { if (k !== v && o.leave) o.leave(); });
   A.views[v] && A.views[v].enter && A.views[v].enter();
   // view ids double as URL fragments, so the browser may try to scroll to them after unhiding; pin the top
   window.scrollTo(0, 0); requestAnimationFrame(() => window.scrollTo(0, 0)); setTimeout(() => window.scrollTo(0, 0), 60);
 }
 A.route = route;
+// the champagne pill glides to the active dock item
+function placePill() {
+  const pill = $('.dock .pill'), a = $('.dock a.on'); if (!pill || !a) return;
+  pill.style.width = a.offsetWidth + 'px'; pill.style.height = a.offsetHeight + 'px';
+  pill.style.transform = `translate(${a.offsetLeft}px,${a.offsetTop}px)`;
+  if (!pill.classList.contains('ready')) requestAnimationFrame(() => pill.classList.add('ready'));
+}
+window.addEventListener('resize', placePill);
+if (document.fonts) document.fonts.ready.then(placePill);
 A.refresh = () => { renderMe(); Object.values(A.views).forEach(o => o.refresh && o.refresh()); };
 window.addEventListener('hashchange', route);
 A.go = v => { if (location.hash === '#' + v) route(); else location.hash = v; };

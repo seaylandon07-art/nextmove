@@ -104,7 +104,7 @@ function render() {
   if (!R.fens.length) return;
   const i = R.cur; const fen = R.ex ? R.ex.fen : R.fens[i];
   const arrows = []; let badge = null, last = null;
-  if (R.ex) { last = R.ex.last; const l = R.ex.line; if (l && l.move) arrows.push({ from: l.move.slice(0, 2), to: l.move.slice(2, 4), c: '#ff5c28' }); }
+  if (R.ex) { last = R.ex.last; const l = R.ex.line; if (l && l.move) arrows.push({ from: l.move.slice(0, 2), to: l.move.slice(2, 4), c: '#e6a83a' }); }
   else if (i > 0) {
     const m = R.moves[i - 1]; last = m.u; const c = R.cls[i - 1];
     if (c) { badge = { sq: m.u.slice(2, 4), c: CLS[c.cls].c, i: CLS[c.cls].i }; const b = R.an[i - 1].lines[0]; if (b && b.move && b.move !== m.u && !['book', 'forced'].includes(c.cls)) arrows.push({ from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#5aa54a' }); }

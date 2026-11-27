@@ -368,7 +368,8 @@ class Board {
     if (changed) { this.uArrows = []; this.uMarks = {}; }
     this.sel = null; this.dests = []; this.promo.hidden = true; this.render();
     if (o.anim && this.last && !this.noAnim) this.animate(this.last);
-    this.noAnim = false;
+    else if (this.landNext && this.last && this.last.slice(2, 4) === this.landNext) { const el = this.sqs.querySelector(`[data-sq="${this.landNext}"] .pc`); if (el) el.classList.add('land'); }
+    this.landNext = null; this.noAnim = false;
   }
   animate(u) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -376,7 +377,7 @@ class Board {
     const el = this.sqs.querySelector(`[data-sq="${to}"] .pc`); if (!el) return;
     const [x1, y1] = this.sqXY(from), [x2, y2] = this.sqXY(to);
     el.style.transition = 'none'; el.style.transform = `translate(${(x1 - x2) * 100}%,${(y1 - y2) * 100}%)`; el.style.zIndex = 5;
-    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = 'transform .16s ease-out'; el.style.transform = ''; }));
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = 'transform .24s cubic-bezier(.22,1,.36,1)'; el.style.transform = ''; }));
     // castling: slide the rook too
     const p = this.pieces()[to];
     if (p && p[1] === 'k' && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
@@ -490,7 +491,7 @@ class Board {
   }
   finish(from, to, promo) {
     this.sel = null; this.dests = [];
-    this.lastWasDrag = !!this.noAnimNext; this.noAnimNext = false;
+    this.lastWasDrag = !!this.noAnimNext; this.landNext = this.noAnimNext ? to : null; this.noAnimNext = false;
     const ok = this.o.onMove ? this.o.onMove(from, to, promo) : false;
     if (!ok) this.render();
   }

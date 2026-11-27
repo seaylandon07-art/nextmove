@@ -106,13 +106,12 @@
   }
   function renderBadge() {
     const btn = document.getElementById('acctBtn'); if (!btn) return;
-    btn.querySelector('span').textContent = user ? user.username : 'Sign in';
+    btn.querySelector('span').textContent = 'Sign in'; btn.hidden = !!user;
+    const me = document.getElementById('meCard'); if (me) me.hidden = !user;
   }
   window.addEventListener('load', async () => {
     const foot = document.querySelector('.sidefoot');
     if (foot) { const b = document.createElement('button'); b.className = 'linkbtn'; b.id = 'acctBtn'; b.innerHTML = '<svg class="i"><use href="#i-users"/></svg><span>Sign in</span>'; b.onclick = openDialog; foot.insertBefore(b, foot.querySelector('[data-open]')); }
-    const top = document.querySelector('.topbar .sp');
-    if (top) { const b = document.createElement('button'); b.className = 'btn quiet'; b.setAttribute('aria-label', 'Account'); b.innerHTML = '<svg class="i"><use href="#i-users"/></svg>'; b.onclick = openDialog; top.after(b); }
     const me = document.getElementById('meCard'); if (me) { me.style.cursor = 'pointer'; me.onclick = openDialog; }
     await ready; renderBadge();
   });

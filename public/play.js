@@ -188,7 +188,7 @@ function saveUnfinished() {
 $('#hintBtn').onclick = async () => {
   if (!P.g || P.over || P.thinking) return;
   const r = await K.analyse(P.g.fen(), 14); const b = r.lines[0]; if (!b || !b.move) return;
-  P.hint = { from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#ff5c28' }; render();
+  P.hint = { from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#e6a83a' }; render();
 };
 $('#undoBtn').onclick = () => {
   if (!P.g || P.thinking || P.mode === 'online') return;

@@ -8,7 +8,7 @@ cpSync('web', 'public', { recursive: true });
 
 const head = `
 <meta name="description" content="Free chess with Stockfish: play bots and friends, review your games in plain English, and train on drills built from your own mistakes.">
-<meta name="theme-color" content="#101113">
+<meta name="theme-color" content="#0a0e1c">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">

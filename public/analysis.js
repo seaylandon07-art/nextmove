@@ -18,7 +18,7 @@ function anMove(f, t, pr) {
 }
 function render(anim) {
   const fen = fenAt(AN.ply); const last = AN.ply ? AN.moves[AN.ply - 1] : null;
-  const top = AN.lines[0]; const arrows = top && top.move && $('#aEngine').checked ? [{ from: top.move.slice(0, 2), to: top.move.slice(2, 4), c: '#ff5c28', o: .7 }] : [];
+  const top = AN.lines[0]; const arrows = top && top.move && $('#aEngine').checked ? [{ from: top.move.slice(0, 2), to: top.move.slice(2, 4), c: '#e6a83a', o: .7 }] : [];
   ab.set(fen, { last, arrows, anim });
   $('#aFen').value = fen;
   const sans = sanList(); const sc = new Chess(AN.start); const black = sc.turn() === 'b'; const no0 = +sc.fen().split(' ')[5];
@@ -51,7 +51,7 @@ async function think() {
     if (r.lines.length) { AN.lines = r.lines; AN.depth = r.lines[0].depth || d; drawLines(fen); render0(); }
   }
 }
-function render0() { const top = AN.lines[0]; ab.setArrows(top && top.move && $('#aEngine').checked ? [{ from: top.move.slice(0, 2), to: top.move.slice(2, 4), c: '#ff5c28', o: .7 }] : []); }
+function render0() { const top = AN.lines[0]; ab.setArrows(top && top.move && $('#aEngine').checked ? [{ from: top.move.slice(0, 2), to: top.move.slice(2, 4), c: '#e6a83a', o: .7 }] : []); }
 function go(p) { const n = Math.max(0, Math.min(AN.moves.length, p)); const fwd = n === AN.ply + 1; AN.ply = n; render(fwd); if (fwd) A.sound('move'); think(); }
 $('#aMoves').onclick = e => { const b = e.target.closest('[data-p]'); if (b) go(+b.dataset.p); };
 $('#aLines').onclick = e => { const b = e.target.closest('[data-l]'); if (!b) return; const l = AN.lines[+b.dataset.l]; if (!l || !l.move) return; const c = new Chess(fenAt(AN.ply)); const m = K.mv(c, l.move); if (m) anMove(m.from, m.to, m.promotion); };

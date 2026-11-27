@@ -14,9 +14,9 @@ const BOX_DAYS = [0, 1, 3, 7, 16, 35];
 function renderHub() {
   const s = S(); s.best = s.best || {};
   const done = (s.days || {})[A.today()] || 0, st = A.streak(), due = A.due().length;
-  const pct = Math.min(1, done / A.GOAL), C = 2 * Math.PI * 23;
-  $('#today').innerHTML = `<svg viewBox="0 0 58 58" class="ring"><circle cx="29" cy="29" r="23" class="rb"/><circle cx="29" cy="29" r="23" class="rf" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/><text x="29" y="35" text-anchor="middle">${Math.min(done, 99)}</text></svg>
-    <div><h1>${done >= A.GOAL ? 'Daily goal done' : 'Train'}</h1><p class="mute">${done >= A.GOAL ? 'Anything more is a bonus.' : `${A.GOAL - done} more reps for today’s goal`} · ${st ? `${st}-day streak` : 'no streak yet'} · ${due} drill${due === 1 ? '' : 's'} due</p></div>
+  const pct = Math.min(1, done / A.GOAL), C = 2 * Math.PI * 24;
+  $('#today').innerHTML = `<svg viewBox="0 0 58 58" class="ring"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe8bf"/><stop offset="1" stop-color="#d9a64f"/></linearGradient></defs><circle cx="29" cy="29" r="24" class="rb"/><circle cx="29" cy="29" r="24" class="rf" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/><text x="29" y="36.5" text-anchor="middle">${Math.min(done, 99)}</text></svg>
+    <div><h1>${done >= A.GOAL ? 'Daily goal done' : 'Train'}</h1><p class="mute">${done >= A.GOAL ? 'Anything more is a bonus.' : `${A.GOAL - done} more reps to hit today’s goal.`} ${st ? `${st}-day streak` : 'No streak yet'}, ${due ? `${due} drill${due === 1 ? '' : 's'} due` : 'no drills due'}.</p></div>
     <button class="btn" data-start="${due ? 'drills' : 'tactics'}">${due ? 'Start with drills' : 'Start with puzzles'}</button>`;
   const mastered = s.drills.filter(x => x.box >= 4).length;
   $('#hDrills').textContent = s.drills.length ? `${due} due` : 'empty';
@@ -47,7 +47,7 @@ function close() { stopTimer(); T.mode = null; K.eng.stop(); $('#hub').hidden = 
 $('#tBack').onclick = () => { if (T.mode && T.back && T.inner) { T.inner = false; T.back(); } else close(); };
 function tools(o) { for (const k of ['Hint', 'Show', 'Undo', 'Restart', 'Skip', 'Next']) $('#t' + k).hidden = !o[k.toLowerCase()]; $('#tTools').hidden = !Object.values(o).some(Boolean); }
 function prompt(h, sub) { $('#tPrompt').innerHTML = `<b>${h}</b>${sub ? `<p>${sub}</p>` : ''}`; }
-function fb(kind, head, lines = [], extra = '', shows = [], restore) { $('#tFb').innerHTML = `<div class="fb ${kind}"><b>${head}</b>${A.explainHTML({ text: lines.filter(Boolean), shows }, tb, restore || (() => show(T.fen)))}${extra}</div>`; }
+function fb(kind, head, lines = [], extra = '', shows = [], restore) { if (kind === 'ok' || kind === 'no') A.flash(tb.host, kind); $('#tFb').innerHTML = `<div class="fb ${kind}"><b>${head}</b>${A.explainHTML({ text: lines.filter(Boolean), shows }, tb, restore || (() => show(T.fen)))}${extra}</div>`; }
 const nm = (fen, u) => esc(K.moveName(fen, u));
 const keep = t => !/^The line:|^Better was/.test(t);
 function show(fen, o = {}) { T.fen = fen; tb.set(fen, o); }
@@ -61,7 +61,7 @@ async function hintFor(fen) {
   const r = await K.analyse(fen, 13, 1); const b = r.lines[0]; if (!b || !b.move) return;
   T.hintLvl++;
   if (T.hintLvl === 1) tb.set(fen, { marks: { [b.move.slice(0, 2)]: 'hint' } });
-  else tb.set(fen, { arrows: [{ from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#ff5c28' }] });
+  else tb.set(fen, { arrows: [{ from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#e6a83a' }] });
 }
 function trainMove(f, t, pr) {
   const c = new Chess(T.fen); const m = c.move({ from: f, to: t, promotion: pr || 'q' }); if (!m) return false;
@@ -359,7 +359,7 @@ function opPlay(line, color) {
   $('#tFb').innerHTML = ideaBox();
   tools({ hint: true, restart: true });
   T.restart = () => opPlay(line, color);
-  T.hint = () => { T.clean = false; const u = line.moves[T.idx]; if (u) show(T.g.fen(), { arrows: [{ from: u.slice(0, 2), to: u.slice(2, 4), c: '#ff5c28' }] }); };
+  T.hint = () => { T.clean = false; const u = line.moves[T.idx]; if (u) show(T.g.fen(), { arrows: [{ from: u.slice(0, 2), to: u.slice(2, 4), c: '#e6a83a' }] }); };
   const auto = async () => {
     while (T.idx < line.moves.length && T.g.turn() !== color) { await K.sleep(450); if (T.line !== line) return; const u = line.moves[T.idx++]; const m = K.mv(T.g, u); show(T.g.fen(), { last: u, anim: true }); A.moveSound(m, T.g); }
     if (T.idx >= line.moves.length) opDone(); else $('#tMeta').textContent = `${Math.ceil(T.idx / 2)} / ${Math.ceil(line.moves.length / 2)}`;
