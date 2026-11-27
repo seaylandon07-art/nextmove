@@ -313,29 +313,44 @@ function egDone(ok, msg) {
 }
 
 /* ---------- openings & gambits ---------- */
+// On wide screens the board stays up while picking a line: hovering a row previews where that line ends.
+const wide = () => matchMedia('(min-width: 900px)').matches;
+function listPreview(find) {
+  $('#session .bwrap').hidden = !wide(); tb.orient = 'w'; show(K.START);
+  let cur = null;
+  $('#tList').onmouseover = e => {
+    const r = e.target.closest('.prow'); if (!r || r === cur || !wide()) return;
+    if (cur) cur.classList.remove('pv'); cur = r; r.classList.add('pv');
+    const l = find(r.dataset.pl); if (!l) return;
+    const c = new Chess(); l.moves.forEach(u => K.mv(c, u));
+    tb.orient = l.side || 'w'; show(c.fen(), { last: l.moves[l.moves.length - 1] });
+  };
+}
 function startOpenings() {
-  open('open', 'Opening lines'); $('#session .bwrap').hidden = true;
+  open('open', 'Opening lines');
   prompt('Pick a line and a side', 'The board plays the other side. Other theory moves are accepted with a note.');
   const lines = K.BOOKLINES.filter(l => l.moves.length >= 4);
   const grp = { '1.e4': [], '1.d4': [], 'Other first moves': [] };
   lines.forEach(l => (l.moves[0] === 'e2e4' ? grp['1.e4'] : l.moves[0] === 'd2d4' ? grp['1.d4'] : grp['Other first moves']).push(l));
   const s = S(); let h = '<div class="picker">';
-  for (const [g, list] of Object.entries(grp)) h += `<h4>${g}</h4>${list.map(l => `<div class="prow"><span><b>${esc(l.name)}${s.op[l.name] ? `<span class="done">${s.op[l.name].reps}×</span>` : ''}</b><small>${esc(K.pvSan(K.START, l.moves, 8))}</small></span><span class="row"><button class="btn sec" data-ol="${esc(l.name)}" data-c="w">White</button><button class="btn sec" data-ol="${esc(l.name)}" data-c="b">Black</button></span></div>`).join('')}`;
+  for (const [g, list] of Object.entries(grp)) h += `<h4>${g}</h4>${list.map(l => `<div class="prow" data-pl="${esc(l.name)}"><span><b>${esc(l.name)}${s.op[l.name] ? `<span class="done">${s.op[l.name].reps}×</span>` : ''}</b><small>${esc(K.pvSan(K.START, l.moves, 8))}</small></span><span class="row"><button class="btn sec" data-ol="${esc(l.name)}" data-c="w">White</button><button class="btn sec" data-ol="${esc(l.name)}" data-c="b">Black</button></span></div>`).join('')}`;
   $('#tList').hidden = false; $('#tList').innerHTML = h + '</div>';
+  listPreview(n => lines.find(l => l.name === n));
   $('#tList').onclick = e => { const b = e.target.closest('[data-ol]'); if (b) { T.inner = true; T.back = startOpenings; opPlay(lines.find(l => l.name === b.dataset.ol), b.dataset.c); } };
 }
 function startGambits() {
-  open('gambit', 'Gambit lab'); $('#session .bwrap').hidden = true;
+  open('gambit', 'Gambit lab');
   prompt('Gambits and traps', 'Each line shows its plan while you play. In traps, the opponent walks in and you find the punishing moves.');
   const s = S();
   const grp = { 'Gambits for White': A.GAMB.filter(g => g.kind === 'gambit' && g.side === 'w'), 'Gambits for Black': A.GAMB.filter(g => g.kind === 'gambit' && g.side === 'b'), 'Traps': A.GAMB.filter(g => g.kind === 'trap') };
   let h = '<div class="picker">';
-  for (const [g, list] of Object.entries(grp)) h += `<h4>${g}</h4>${list.map(l => `<div class="prow"><span><b>${esc(l.name)}${l.kind === 'trap' ? '<span class="tag">trap</span>' : ''}${s.op[l.name] ? `<span class="done">✓ ${s.op[l.name].reps}×</span>` : ''}</b><small>${esc(K.pvSan(K.START, l.moves, 8))}</small></span><button class="btn sec" data-gl="${esc(l.name)}">Play ${l.side === 'w' ? 'White' : 'Black'}</button><p>${esc(l.idea)}</p></div>`).join('')}`;
+  for (const [g, list] of Object.entries(grp)) h += `<h4>${g}</h4>${list.map(l => `<div class="prow" data-pl="${esc(l.name)}"><span><b>${esc(l.name)}${l.kind === 'trap' ? '<span class="tag">trap</span>' : ''}${s.op[l.name] ? `<span class="done">✓ ${s.op[l.name].reps}×</span>` : ''}</b><small>${esc(K.pvSan(K.START, l.moves, 8))}</small></span><button class="btn sec" data-gl="${esc(l.name)}">Play ${l.side === 'w' ? 'White' : 'Black'}</button><p>${esc(l.idea)}</p></div>`).join('')}`;
   $('#tList').hidden = false; $('#tList').innerHTML = h + '</div>';
+  listPreview(n => A.GAMB.find(x => x.name === n));
   $('#tList').onclick = e => { const b = e.target.closest('[data-gl]'); if (b) { const l = A.GAMB.find(x => x.name === b.dataset.gl); T.inner = true; T.back = startGambits; opPlay(l, l.side); } };
 }
 function opPlay(line, color) {
-  $('#tList').hidden = true; $('#session .bwrap').hidden = false;
+  $('#tList').hidden = true; $('#tList').onmouseover = null; $('#session .bwrap').hidden = false;
   T.line = line; T.color = color; T.idx = 0; T.g = new Chess(); T.clean = true; T.hintLvl = 0; T.lock = false;
   tb.orient = color; show(T.g.fen()); T.movable = color;
   const mine = line.moves.filter((_, i) => (i % 2 === 0) === (color === 'w')).length;

@@ -8,14 +8,15 @@ function render() {
   const last10 = accs.slice(-10); const avg = last10.length ? Math.round(last10.reduce((a, b) => a + b, 0) / last10.length) : null;
   $('#stats').innerHTML = [
     ['Puzzle rating', Math.round(s.puz.r), hist.length ? `${solved} of ${hist.length} first try` : 'no puzzles yet'],
-    ['Accuracy', avg ?? '–', last10.length ? `average, last ${last10.length} games` : 'review a game with your side set'],
+    ['Accuracy', avg ?? '–', last10.length ? `average, last ${last10.length} game${last10.length === 1 ? '' : 's'}` : 'review a game with your side set'],
     ['Drills mastered', `${s.drills.filter(d => d.box >= 4).length}/${s.drills.length}`, `${A.due().length} due now`],
     ['Streak', `${A.streak()}d`, `best rush ${s.best.rush || 0} · streak ${s.best.streak || 0}`]
   ].map(([a, b, c]) => `<div class="stat"><small>${a}</small><b>${esc(b)}</b><span>${esc(c)}</span></div>`).join('');
   line($('#rchart'), hist.map(h => h.r), 'Puzzle rating');
   line($('#achart'), accs, 'Accuracy');
-  // activity calendar: last 20 weeks
-  const days = s.days || {}; const end = new Date(); const cells = []; const start = new Date(end); start.setDate(start.getDate() - (7 * 20 - 1) - end.getDay());
+  // activity calendar: as many weeks as fit the card (max a year)
+  const cw = $('#cal').clientWidth || 300; const weeks = Math.max(12, Math.min(53, Math.floor((cw + 3) / 15)));
+  const days = s.days || {}; const end = new Date(); const cells = []; const start = new Date(end); start.setDate(start.getDate() - (7 * weeks - 1) - end.getDay());
   let active = 0;
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) { const k = new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); const n = days[k] || 0; if (n) active++; cells.push(`<i class="${n >= A.GOAL ? 'l3' : n >= 5 ? 'l2' : n ? 'l1' : ''}" title="${k}: ${n} reps"></i>`); }
   $('#cal').innerHTML = cells.join(''); $('#calNote').textContent = `${active} active day${active === 1 ? '' : 's'} · goal ${A.GOAL} reps`;

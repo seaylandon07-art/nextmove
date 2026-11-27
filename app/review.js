@@ -207,8 +207,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') go(R.cur - 1); if (e.key === 'ArrowRight') go(R.cur + 1);
 });
 function graph() {
-  const s = $('#graph'); const W = s.clientWidth, H = s.clientHeight; if (!W) return;
-  const n = R.fens.length; if (n < 2) { s.innerHTML = ''; return; }
+  const s = $('#graph'); if ((R.fens || []).length < 2) { $('#graphWrap').classList.add('empty'); s.innerHTML = ''; return; } $('#graphWrap').classList.remove('empty'); const W = s.clientWidth, H = s.clientHeight; if (!W) return;
+  const n = R.fens.length; $('#graphWrap').classList.toggle('empty', n < 2); if (n < 2) { s.innerHTML = ''; return; }
   const x = i => i / (n - 1) * W, y = w => H - w / 100 * H;
   let d = `M0,${H}`; for (let i = 0; i < n; i++) { const w = R.an[i] ? K.winW(R.an[i].lines[0]) : 50; d += ` L${x(i).toFixed(1)},${y(w).toFixed(1)}`; } d += ` L${W},${H} Z`;
   let dots = '';

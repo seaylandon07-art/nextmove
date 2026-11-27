@@ -143,7 +143,7 @@ A.due = () => { const now = Date.now(); return S().drills.filter(d => d.due <= n
 function renderMe() {
   const s = S(); const el = $('#meCard'); if (!el) return;
   const nm = (s.name || 'You').split(',')[0].trim() || 'You';
-  el.innerHTML = `<span class="av" id="meAv"></span><b>${esc(nm)}</b><span>${Math.round(s.puz.r)} · ${A.streak()}d streak</span>`;
+  const st = A.streak(); el.innerHTML = `<span class="av" id="meAv"></span><b>${esc(nm)}</b><span>${Math.round(s.puz.r)} · ${st ? st + '-day streak' : 'puzzle rating'}</span>`;
   A.avatar($('#meAv'), nm);
 }
 A.renderMe = renderMe;
@@ -180,7 +180,8 @@ function route() {
   $$('.nav a, .tabbar a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + v));
   Object.entries(A.views).forEach(([k, o]) => { if (k !== v && o.leave) o.leave(); });
   A.views[v] && A.views[v].enter && A.views[v].enter();
-  window.scrollTo(0, 0);
+  // view ids double as URL fragments, so the browser may try to scroll to them after unhiding; pin the top
+  window.scrollTo(0, 0); requestAnimationFrame(() => window.scrollTo(0, 0)); setTimeout(() => window.scrollTo(0, 0), 60);
 }
 A.route = route;
 A.refresh = () => { renderMe(); Object.values(A.views).forEach(o => o.refresh && o.refresh()); };

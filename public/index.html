@@ -54,7 +54,7 @@ svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .sidefoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding:0 6px}
 .me{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
 .me .av{grid-row:span 2}
-.me b{font-size:13px}.me span{font-size:12px;color:var(--mute);font-family:var(--mono)}
+.me b{font-size:13px}.me span{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .eng{font-size:11px;color:var(--mute);display:flex;align-items:center;gap:6px;padding:0 4px}
 .eng::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--mute)}.eng.ok::before{background:var(--ok)}.eng.bad{color:var(--no)}
 .linkbtn{display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--mute);padding:6px 4px;cursor:pointer;font-size:13px}
@@ -137,8 +137,10 @@ p{margin:0}
 .tools .btn:hover{background:var(--panel2);color:var(--ink)}
 .tools .btn.on{color:var(--acc2)}
 :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
-input[type=text],select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;min-height:38px;width:100%;font-size:16px}
-@media(min-width:700px){input[type=text],select,textarea{font-size:14px}}
+input[type=text],input[type=password],select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;min-height:38px;width:100%;font-size:16px}
+@media(min-width:700px){input[type=text],input[type=password],select,textarea{font-size:14px}}
+input[type=checkbox],input[type=radio],input[type=range]{accent-color:var(--acc)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;border-color:color-mix(in srgb,var(--acc) 70%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 18%,transparent)}
 textarea{min-height:130px;resize:vertical;font:12.5px/1.45 var(--mono)}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--mute)}
 label.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}
@@ -155,7 +157,7 @@ label.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink
 .sheet li{display:grid;grid-template-columns:40px 1fr 1fr;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .sheet li>span{color:var(--mute);padding:7px 0 7px 12px;background:var(--panel2)}
 .fg{width:17px;height:17px;margin:-3px 0 -4px -2px}
-.shows{margin-top:2px}.shows .btn{padding:0 8px;color:var(--acc2)}
+.shows{margin-top:4px;flex-direction:column;align-items:flex-start;gap:0}.shows .btn{padding:0 2px;min-height:30px;color:var(--acc2)}.shows .btn:hover{background:none;color:var(--ink)}
 #notSeg{flex-direction:column}#notSeg button{white-space:normal;text-align:left}
 .sheet b{font-weight:500;padding:6px 8px;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .sheet .mv{cursor:pointer}.sheet .mv:hover{background:var(--panel2)}
@@ -290,6 +292,8 @@ label.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink
   h1{font-size:22px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.fig.empty{display:none}
+.prow.pv{background:color-mix(in srgb,var(--acc) 6%,transparent)}
 </style>
 </head>
 <body>
@@ -390,7 +394,7 @@ label.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink
 <section class="view" id="review" hidden>
   <div class="stage">
     <div class="bwrap"><div class="evalbar"><i></i><span></span></div><div class="bd"></div></div>
-    <div class="fig" title="Tap to jump"><svg id="graph"></svg></div>
+    <div class="fig" id="graphWrap" title="Tap to jump"><svg id="graph"></svg></div>
     <div class="navr" id="rnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Last move"><svg class="i"><use href="#i-last"/></svg></button><button data-nav="flip" aria-label="Flip board"><svg class="i"><use href="#i-flip"/></svg></button></div>
   </div>
   <aside class="panel">
