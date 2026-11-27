@@ -460,6 +460,13 @@ body[data-bg=felt] #bgfx::after{background:radial-gradient(ellipse at 50% 30%,rg
 .tile em{right:auto;left:18px;top:auto;bottom:16px;position:absolute}
 .tile{padding-bottom:44px}
 @media(max-width:700px){.modes{grid-template-columns:repeat(3,minmax(0,1fr))}.mode{padding:8px 10px 12px}.mode .art{width:64px;height:64px}.mode small{display:none}.tile .tart{width:64px;height:64px}.tile.feature .tart{width:96px;height:96px}.tile.feature b,.tile.feature small{max-width:calc(100% - 100px)}}
+body[data-bg=royal] #bgfx::before{background:url(bg/royal.jpg) 60% 50%/cover}
+body[data-bg=spotlight] #bgfx::before{background:url(bg/arena.jpg) center/cover}
+body[data-bg=checkmate] #bgfx::before{background:url(bg/checkmate.jpg) 40% 50%/cover}
+body[data-bg=goldset] #bgfx::before{background:url(bg/gold.jpg) center/cover}
+body[data-bg=neon] #bgfx::before{background:url(bg/neon.svg) center/cover}
+body[data-bg=royal] #bgfx::after,body[data-bg=spotlight] #bgfx::after,body[data-bg=checkmate] #bgfx::after,body[data-bg=goldset] #bgfx::after,body[data-bg=neon] #bgfx::after{background:linear-gradient(90deg,rgba(6,8,18,.55),rgba(6,8,18,.25) 45%,rgba(6,8,18,.6)),linear-gradient(rgba(6,8,18,.25),rgba(6,8,18,.65))}
+body[data-bg=royal],body[data-bg=spotlight],body[data-bg=checkmate],body[data-bg=goldset],body[data-bg=neon]{background:#06070d}
 </style>
 </head>
 <body>
