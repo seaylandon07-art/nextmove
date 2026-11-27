@@ -480,9 +480,9 @@ class Board {
     clearTimeout(this.lp); this.lpStart = null;
     if ((e.button === 2 || this.drawMode || this.lpOn) && this.rdown) {
       const sq = this.sqAt(e), a = this.rdown, m = this.rmod || e; this.rdown = null; this.lpOn = false; if (!sq) { this.render(); return; }
-      // colours like the big sites: plain = orange, Shift = green, Ctrl = red, Alt = blue
+      // plain = your colour from Settings, Shift = green, Ctrl = red, Alt = blue
       const k = m.shiftKey ? 2 : m.ctrlKey || m.metaKey ? 1 : m.altKey ? 3 : 0;
-      const AC = ['#f2a33a', '#ff5c5c', '#5fd39a', '#6aa8ff'], MK = [1, 1, 2, 3];
+      const AC = [window.K && K.arrowColor ? K.arrowColor() : '#4fcf8f', '#ff5a5a', '#4fcf8f', '#5b9dff'], MK = [1, 1, 2, 3];
       this.uArrows = this.uArrows || []; this.uMarks = this.uMarks || {};
       if (sq === a) { if (this.uMarks[sq]) delete this.uMarks[sq]; else this.uMarks[sq] = MK[k]; }
       else { const i = this.uArrows.findIndex(x => x.from === a && x.to === sq); if (i >= 0) this.uArrows.splice(i, 1); else this.uArrows.push({ from: a, to: sq, c: AC[k], o: .82 }); }

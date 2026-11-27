@@ -9,7 +9,9 @@ const DAY = 864e5, GOAL = 12;
 const A = { S, $$, uid, today, DAY, GOAL, views: {}, PUZ: [], EG: [], GAMB: [], sample: null };
 
 /* ---------- settings ---------- */
-const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain' };
+const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green' };
+const ARROWS = [['green', 'Green', '#4fcf8f'], ['gold', 'Champagne gold', '#e9b850'], ['blue', 'Blue', '#5b9dff'], ['red', 'Red', '#ff5a5a'], ['orange', 'Orange', '#f2a33a']];
+K.arrowColor = () => (ARROWS.find(a => a[0] === A.ui().arrow) || ARROWS[0])[2];
 A.ui = () => { const s = S(); s.ui = Object.assign({}, UI_DEF, s.ui || {}); return s.ui; };
 A.boards = [];
 function applyUI() {
@@ -25,6 +27,7 @@ function renderSettings() {
   const u = A.ui();
   $('#swatches').innerHTML = BOARDS.map(([n, a, b]) => `<button class="sw${u.board === n ? ' on' : ''}" data-b="${n}" style="--a:${a};--b:${b}" aria-label="${n} board"><i></i><i></i><i></i><i></i></button>`).join('');
   $('#psets').innerHTML = Object.keys(K.PIECESETS || {}).map(n => `<button class="pset${u.pieces === n ? ' on' : ''}" data-p="${n}" aria-label="${n} pieces">${['wn', 'wq', 'bk'].map(p => `<img alt="" src="${K.PIECESETS[n][p]}">`).join('')}</button>`).join('');
+  $('#arrowSw').innerHTML = ARROWS.map(([k, n, c]) => `<button class="asw${u.arrow === k ? ' on' : ''}" data-a="${k}" style="--c:${c}"><i></i>${n}</button>`).join('');
   [...document.querySelectorAll('#notSeg button')].forEach(b => b.classList.toggle('on', b.dataset.n === u.notation));
   $('#sSound').checked = u.sound; $('#sCoords').checked = u.coords; $('#sAnim').checked = u.anim;
   $('#nameIn').value = S().name || ''; $('#depthIn').value = String(S().depth || 14);
@@ -35,6 +38,7 @@ document.addEventListener('click', e => {
 });
 $('#swatches').onclick = e => { const b = e.target.closest('[data-b]'); if (!b) return; A.ui().board = b.dataset.b; K.save(); applyUI(); renderSettings(); };
 $('#psets').onclick = e => { const b = e.target.closest('[data-p]'); if (!b) return; A.ui().pieces = b.dataset.p; K.save(); applyUI(); renderSettings(); };
+$('#arrowSw').onclick = e => { const b = e.target.closest('[data-a]'); if (!b) return; A.ui().arrow = b.dataset.a; K.save(); renderSettings(); };
 $('#notSeg').onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; A.ui().notation = b.dataset.n; K.save(); renderSettings(); A.refresh(); };
 $('#sSound').onchange = e => { A.ui().sound = e.target.checked; K.save(); };
 $('#sCoords').onchange = e => { A.ui().coords = e.target.checked; K.save(); applyUI(); };
