@@ -98,6 +98,7 @@ function startGame(opts = {}) {
   $('#hintBtn').hidden = P.mode !== 'bot'; $('#undoBtn').hidden = P.mode === 'online';
   render();
   $('#coachBtn').hidden = P.mode !== 'bot'; $('#coachBtn').classList.toggle('on', A.ui().coach !== false); drawCoach();
+  A.sound('start');
   if (P.mode === 'bot' && P.g.turn() !== P.me) botMove(); else warmCoach();
 }
 // continue a trained line as a real game against a bot near your level

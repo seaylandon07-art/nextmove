@@ -81,8 +81,27 @@ function tone(t0, freq, vol, len) {
   g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + .01); g.gain.exponentialRampToValueAtTime(.0001, t0 + len);
   o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + len + .05);
 }
+// Recorded-style wooden board sounds (synthesized offline, see gen/sfx.py); the old synth is the fallback.
+const SFX = {}; const SFX_NAMES = ['move', 'capture', 'check', 'castle', 'promote', 'start', 'end', 'good', 'bad'];
+let sfxLoading = null;
+function loadSfx() {
+  if (sfxLoading) return sfxLoading; const c = audio(); if (!c) return null;
+  sfxLoading = Promise.all(SFX_NAMES.map(n => fetch(`sfx/${n}.mp3`).then(r => r.arrayBuffer()).then(b => new Promise((ok, no) => c.decodeAudioData(b, ok, no))).then(buf => { SFX[n] = buf; }).catch(() => { })));
+  return sfxLoading;
+}
+['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, () => loadSfx(), { once: true, passive: true }));
+function playSfx(name) {
+  const c = audio(); const buf = SFX[name]; if (!c || !buf) return false;
+  const src = c.createBufferSource(); src.buffer = buf;
+  if (['move', 'capture', 'castle'].includes(name)) src.playbackRate.value = .97 + Math.random() * .06;   // no two moves sound identical
+  const g = c.createGain(); g.gain.value = (A.ui().volume ?? .8) * (.92 + Math.random() * .08);
+  src.connect(g).connect(c.destination); src.start(); return true;
+}
 A.sound = (kind) => {
-  if (!A.ui().sound) return; const c = audio(); if (!c) return; const t = c.currentTime + .005;
+  if (!A.ui().sound) return; const c = audio(); if (!c) return; loadSfx();
+  if (playSfx(kind) || (kind === 'castle' || kind === 'promote') && playSfx('move')) return;
+  if (kind === 'start' || kind === 'castle' || kind === 'promote') kind = kind === 'start' ? 'good' : 'move';
+  const t = c.currentTime + .005;
   try {
     if (kind === 'move') knock(t, 1800, .9, .06);
     else if (kind === 'capture') { knock(t, 900, 1.2, .09); knock(t + .025, 2400, .5, .05); }
@@ -92,7 +111,7 @@ A.sound = (kind) => {
     else if (kind === 'bad') { tone(t, 220, .08, .25); }
   } catch (e) { }
 };
-A.moveSound = (m, ch) => { if (!m) return; if (A.ui().sound && navigator.vibrate) try { navigator.vibrate(m.captured ? 14 : 7); } catch (e) { } A.sound(ch && ch.game_over() ? 'end' : ch && ch.in_check() ? 'check' : m.captured ? 'capture' : 'move'); };
+A.moveSound = (m, ch) => { if (!m) return; if (A.ui().sound && navigator.vibrate) try { navigator.vibrate(m.captured ? 14 : 7); } catch (e) { } A.sound(ch && ch.game_over() ? 'end' : ch && ch.in_check() ? 'check' : m.promotion ? 'promote' : /[kq]/.test(m.flags || '') ? 'castle' : m.captured ? 'capture' : 'move'); };
 
 /* ---------- small helpers ---------- */
 A.flash = (host, kind) => { if (!host) return; host.classList.remove('fx-ok', 'fx-no'); void host.offsetWidth; host.classList.add(kind === 'ok' ? 'fx-ok' : 'fx-no'); clearTimeout(host._fx); host._fx = setTimeout(() => host.classList.remove('fx-ok', 'fx-no'), 900); };
