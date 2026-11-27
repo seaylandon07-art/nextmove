@@ -50,7 +50,8 @@ const AWARDS = [
   ['streak_30', 'Month streak', 'Train 30 days in a row', 'k', 3, s => (s.xp.bestDays || 0) >= 30],
   ['share', 'Show-off', 'Share a game or review', 'p', 1, did('share')],
   ['import', 'Moving in', 'Import your games from chess.com or Lichess', 'n', 1, did('import')],
-  ['install', 'Home screen', 'Install the NextMove app', 'b', 1, did('install')]
+  ['install', 'Home screen', 'Install the NextMove app', 'b', 1, did('install')],
+  ['founder', 'Founder', 'One of the first 500 NextMove Plus members', 'k', 3, () => !!(window.NM_FOUNDER && window.NM_FOUNDER())]
 ].map(([id, n, d, p, tier, t]) => ({ id, n, d, p, tier, t }));
 const BANNERS = [
   ['midnight', 'Midnight', 'linear-gradient(135deg,#1a2350,#0a0e1c 70%)', 1],
@@ -64,7 +65,10 @@ const BANNERS = [
   ['arena', 'Arena', "url('bg/arena.jpg') center/cover", 30],
   ['sunrise', 'Sunrise', "url('bg/sunrise.jpg') center/cover", 0, 'puz_250'],
   ['ice', 'Ice', "url('bg/ice.jpg') center/cover", 0, 'streak_30'],
-  ['checkmate', 'Checkmate', "url('bg/checkmate.jpg') center/cover", 0, 'games_100']
+  ['checkmate', 'Checkmate', "url('bg/checkmate.jpg') center/cover", 0, 'games_100'],
+  ['plusgold', 'Plus gold', 'radial-gradient(120% 140% at 85% 0%,#f6dc9e 0%,#c8923e 28%,#3a2a12 62%,#120d06 100%)', 0, 'plus'],
+  ['plusice', 'Plus ice', "url('bg/ice.jpg') center/cover", 0, 'plus'],
+  ['founder', 'Founder', 'linear-gradient(120deg,#0a0e1c 0%,#2a1f0a 40%,#f1cf86 50%,#2a1f0a 60%,#0a0e1c 100%)', 0, 'founder']
 ].map(([id, n, css, lv, aw]) => ({ id, n, css, lv, aw }));
 
 function ensure(s = S()) {
@@ -75,7 +79,7 @@ function ensure(s = S()) {
   for (const a of AWARDS) if (!s.awards[a.id] && a.t(s)) s.awards[a.id] = A.today();
   return s;
 }
-const unlocked = (s, b) => b.aw ? !!s.awards[b.aw] : lvl(s.xp.t).L >= b.lv;
+const unlocked = (s, b) => b.aw === 'plus' ? !!(A.paywall && A.paywall() && A.plus()) : b.aw ? !!s.awards[b.aw] : lvl(s.xp.t).L >= b.lv;
 function pop(text, big) {
   let el = $('#xpPop'); if (!el) { el = document.createElement('div'); el.id = 'xpPop'; document.body.appendChild(el); }
   el.textContent = text; el.className = big ? 'big' : ''; void el.offsetWidth; el.classList.add('show');
@@ -93,10 +97,11 @@ function addXP(n, k) {
   const msgs = fresh.map(a => `Award unlocked: ${a.n}`);
   if (after > before) { const t = titleOf(after), nb = BANNERS.filter(b => !b.aw && b.lv > lvl(0).L && b.lv > before && b.lv <= after);
     msgs.unshift(`Level ${after}${t[0] === after ? ` · you’re now a ${t[1]}` : ''}${nb.length ? ` · new banner: ${nb.map(b => b.n).join(', ')}` : ''}`); }
+  if (after > before) setTimeout(() => A.plusMoment && A.plusMoment(`Level ${after}. You’re improving.`), 7000);
   if (msgs.length) { queue.push(...msgs); if (queue.length === msgs.length) drain(); } else pop(`+${n} XP`);
   if (A.views.progress) A.views.progress.refresh();
 }
-function drain() { if (!queue.length) return; pop(queue[0], true); A.sound && A.sound('good'); setTimeout(() => { queue.shift(); drain(); }, 3400); }
+function drain() { if (!queue.length) return; pop(queue[0], true); A.sound && A.sound('good'); A.confetti && A.confetti(60); setTimeout(() => { queue.shift(); drain(); }, 3400); }
 A.addXP = addXP;
 const tr = A.track; A.track = k => { tr(k); if (XP[k]) addXP(XP[k], k); };
 
@@ -115,14 +120,14 @@ function render() {
       <div class="pban"></div>
       <div class="pmain">
         <div class="pav"><img src="${K.PIECE['w' + t[2]]}" alt=""><em>${l.L}</em></div>
-        <div class="pwho"><b>${esc(nm)}</b><span>${t[1]} · level ${l.L}${next ? ` · ${next[1]} at level ${next[0]}` : ''}</span>
+        <div class="pwho"><b>${esc(nm)}${A.paywall && A.paywall() && A.plus() ? '<span class="pbadge">Plus</span>' : ''}</b><span>${t[1]} · level ${l.L}${next ? ` · ${next[1]} at level ${next[0]}` : ''}</span>
           <div class="xpbar"><i style="width:${(l.into / l.need * 100).toFixed(1)}%"></i></div><small>${l.into} / ${l.need} XP to level ${l.L + 1} · ${s.xp.t.toLocaleString()} XP total</small></div>
         <div class="pnums"><div><b>${s.elo ? s.elo.r : '–'}</b><small>Play</small></div><div><b>${Math.round(s.puz.r)}</b><small>Puzzles</small></div><div><b>${got.length}/${AWARDS.length}</b><small>Awards</small></div></div>
       </div>
       <div class="pacts"><button class="btn sec" id="banBtn">Change banner</button></div>
-      <div class="banpick" id="banPick" hidden>${BANNERS.map(b => { const u = unlocked(s, b); return `<button class="bano${b.id === ban.id ? ' on' : ''}" data-ban="${b.id}" ${u ? '' : 'disabled'}><i style="background:${b.css.replace(/"/g, '&quot;')}"></i><span>${b.n}</span><small>${u ? (b.id === ban.id ? 'In use' : 'Unlocked') : b.aw ? 'Award: ' + AWARDS.find(a => a.id === b.aw).n : 'Level ' + b.lv}</small></button>`; }).join('')}</div>
+      <div class="banpick" id="banPick" hidden>${BANNERS.filter(b => !['plus', 'founder'].includes(b.aw) || (A.paywall && A.paywall())).map(b => { const u = unlocked(s, b); return `<button class="bano${b.id === ban.id ? ' on' : ''}" data-ban="${b.id}" ${u ? '' : 'disabled'}><i style="background:${b.css.replace(/"/g, '&quot;')}"></i><span>${b.n}</span><small>${u ? (b.id === ban.id ? 'In use' : 'Unlocked') : b.aw === 'plus' ? 'NextMove Plus' : b.aw ? 'Award: ' + AWARDS.find(a => a.id === b.aw).n : 'Level ' + b.lv}</small></button>`; }).join('')}</div>
     </div>`;
-  $('#awards').innerHTML = AWARDS.map(a => { const d = s.awards[a.id]; return `<div class="aw${d ? ' got' : ''}" style="--tc:${TIER[a.tier]}" title="${esc(a.d)}${d ? ' · earned ' + d : ''}"><span class="awi"><img src="${K.PIECE[(d ? 'w' : 'b') + a.p]}" alt=""></span><b>${esc(a.n)}</b><small>${esc(a.d)}</small></div>`; }).join('');
+  $('#awards').innerHTML = AWARDS.filter(a => a.id !== 'founder' || (A.paywall && A.paywall())).map(a => { const d = s.awards[a.id]; return `<div class="aw${d ? ' got' : ''}" style="--tc:${TIER[a.tier]}" title="${esc(a.d)}${d ? ' · earned ' + d : ''}"><span class="awi"><img src="${K.PIECE[(d ? 'w' : 'b') + a.p]}" alt=""></span><b>${esc(a.n)}</b><small>${esc(a.d)}</small></div>`; }).join('');
   $('#awNote').textContent = `${got.length} of ${AWARDS.length} earned`;
 }
 document.addEventListener('click', e => {

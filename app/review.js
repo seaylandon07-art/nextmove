@@ -28,6 +28,8 @@ function detectMe(h) {
   return null;
 }
 function loadReview(pgn, me) {
+  setTimeout(() => A.renderPlus && A.renderPlus(), 0);
+  if (pgn !== SAMPLE && !A.gate('review', String(pgn.length) + ':' + pgn.replace(/\s+/g, ' ').slice(-80))) return false;
   if (R.token) { R.token.cancel = true; K.eng.stop(); }
   const c = new Chess();
   const clean = pgn.replace(/\{[^}]*\}/g, ' ').replace(/\$\d+/g, '');
@@ -97,13 +99,19 @@ function finish(R = RS) {
   const sum = summary(R); const s = S(); const key = R.fens[R.fens.length - 1] + '|' + R.moves.length;
   if (s.reviews.some(r => r.key === key)) return;
   if (R.gid) s.reviews = s.reviews.filter(r => r.gid !== R.gid);
-  const phase = { op: 0, mid: 0, end: 0 }, nPhase = { op: 0, mid: 0, end: 0 };
+  const phase = { op: 0, mid: 0, end: 0 }, nPhase = { op: 0, mid: 0, end: 0 }; const cand = [];
   R.moves.forEach((m, i) => {
     if (R.me && m.color !== R.me) return;
     const ph = A.phaseOf(i, m.fen); nPhase[ph]++;
     const c = R.cls[i]; if (!c) return;
-    if (['mistake', 'blunder', 'miss'].includes(c.cls)) { phase[ph]++; if (R.me && addDrill(i, R)) R.added++; }
+    if (['mistake', 'blunder', 'miss'].includes(c.cls)) { phase[ph]++; if (R.me) cand.push(i); }
   });
+  { // free: the biggest few; Plus: every one
+    const loss = i => (R.cls[i].wb ?? 0) - (R.cls[i].wa ?? 0);
+    const keep = A.plus() ? cand : cand.slice().sort((a, b) => loss(b) - loss(a)).slice(0, A.FREE.drillsPerGame);
+    for (const i of keep) if (addDrill(i, R)) R.added++;
+    const extra = cand.length - keep.length; if (extra > 0 && R === RS) setTimeout(() => A.toast(`Kept your ${keep.length} biggest mistakes as drills. Plus turns all ${cand.length} into drills.`), 800);
+  }
   if (R.me) addGamePuzzles(R);
   if (R.me) {
     const res = R.headers.Result; const won = (R.me === 'w' && res === '1-0') || (R.me === 'b' && res === '0-1');
@@ -155,7 +163,14 @@ function render() {
   if (R.done) {
     const ms = R.cls.map((c, k) => ({ c, k })).filter(x => x.c && BAD.includes(x.c.cls) && x.c.cls !== 'inaccuracy' && (!R.me || R.moves[x.k].color === R.me)).sort((a, b) => b.c.loss - a.c.loss).slice(0, 4).sort((a, b) => a.k - b.k);
     $('#momentsSec').hidden = !ms.length;
-    $('#moments').innerHTML = ms.map(({ c, k }) => { const m = R.moves[k]; return `<button class="moment" data-j="${k + 1}">${A.clsChip(c.cls)}<span>${Math.floor(k / 2) + 1}${m.color === 'w' ? '.' : '…'}</span><b style="font-weight:500">${A.fig(m.san, m.color)}</b><span>−${Math.round(c.loss)}%</span></button>`; }).join('');
+    // "Why did I lose?": the single move where your chances fell the most
+    let turn = '';
+    const res = R.headers.Result, lost = R.me && ((R.me === 'w' && res === '0-1') || (R.me === 'b' && res === '1-0'));
+    if (lost) {
+      let bi = -1, bd = 0; R.cls.forEach((c, k) => { if (!c || R.moves[k].color !== R.me || c.wb == null || c.wa == null) return; const d = c.wb - c.wa; if (d > bd && c.wb >= 35) { bd = d; bi = k; } });
+      if (bi >= 0 && bd >= 15) { const c = R.cls[bi], m = R.moves[bi]; turn = `<button class="turnpt" data-j="${bi + 1}"><b>Why you lost</b><span>The game turned on move ${Math.floor(bi / 2) + 1}: ${esc(K.moveName ? K.moveName(m.fen, m.u) : m.san)} dropped your winning chances from ${Math.round(c.wb)}% to ${Math.round(c.wa)}%. Tap to see what was better.</span></button>`; $('#momentsSec').hidden = false; }
+    }
+    $('#moments').innerHTML = turn + ms.map(({ c, k }) => { const m = R.moves[k]; return `<button class="moment" data-j="${k + 1}">${A.clsChip(c.cls)}<span>${Math.floor(k / 2) + 1}${m.color === 'w' ? '.' : '…'}</span><b style="font-weight:500">${A.fig(m.san, m.color)}</b><span>−${Math.round(c.loss)}%</span></button>`; }).join('');
   } else $('#momentsSec').hidden = true;
   const ml = [];
   for (let k = 0; k < R.moves.length; k += 2) {

@@ -9,7 +9,7 @@ const DAY = 864e5, GOAL = 12;
 const A = { S, $$, uid, today, DAY, GOAL, views: {}, PUZ: [], EG: [], GAMB: [], COURSES: [], sample: null };
 
 /* ---------- settings ---------- */
-const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green', mark: 'red', bg: 'midnight', volume: .8, sstyle: 'wood' };
+const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green', mark: 'red', bg: 'midnight', volume: .8, sstyle: 'wood', confirm: false, blunder: true, zen: false, streamer: false };
 const BGS = [['midnight', 'Midnight', 'radial-gradient(circle at 30% 0%,#1c2552,#0a0e1c 70%)'], ['royal', 'Club room', 'url(bg/royal.jpg) 60% 50%/cover'], ['spotlight', 'Spotlight', 'url(bg/arena.jpg) center/cover'], ['checkmate', 'Checkmate', 'url(bg/checkmate.jpg) 40% 50%/cover'], ['goldset', 'Gold set', 'url(bg/gold.jpg) center/cover'], ['neon', 'Neon knight', 'url(bg/neon.svg) center/cover'], ['tournament', 'Tournament hall', 'url(bg/tournament.jpg) center/cover'], ['bishop', 'Bishop', 'url(bg/bishop.jpg) 35% 50%/cover'], ['marble', 'Marble opening', 'url(bg/marble.jpg) center/cover'], ['sunrise', 'Sunrise', 'url(bg/sunrise.jpg) center/cover'], ['ice', 'Crystal', 'url(bg/ice.jpg) center/cover'], ['pieces', 'Pieces', ''], ['grid', 'Grid horizon', 'linear-gradient(transparent 45%,rgba(241,207,134,.25)),conic-gradient(rgba(241,207,134,.18) 25%,transparent 0 50%,rgba(241,207,134,.18) 0 75%,transparent 0) 0 0/16px 16px,#0a0e1c'], ['aurora', 'Aurora', 'radial-gradient(circle at 25% 30%,rgba(111,211,160,.45),transparent 50%),radial-gradient(circle at 75% 30%,rgba(150,120,255,.45),transparent 50%),radial-gradient(circle at 55% 85%,rgba(241,207,134,.35),transparent 50%),#0a0e1c'], ['stars', 'Night sky', 'radial-gradient(1px 1px at 10px 12px,#fff,transparent),radial-gradient(1px 1px at 40px 30px,#fff,transparent),radial-gradient(1px 1px at 70px 18px,#fff,transparent),radial-gradient(circle at 70% 0%,#1a1440,#05070f 70%)'], ['walnut', 'Walnut', 'repeating-linear-gradient(97deg,#2a1a10 0 4px,#32200f 4px 6px),#1a110b'], ['felt', 'Felt', 'radial-gradient(circle at 50% 30%,#1f5a40,#0b2a1e 75%)'], ['pure', 'Pure black', '#05060b']];
 const ARROWS = [['green', 'Green', '#4fcf8f'], ['gold', 'Champagne gold', '#e9b850'], ['blue', 'Blue', '#5b9dff'], ['red', 'Red', '#ff5a5a'], ['orange', 'Orange', '#f2a33a']];
 const MARKS = [['red', 'Red', '#ff5a5a'], ['green', 'Green', '#4fcf8f'], ['blue', 'Blue', '#5b9dff'], ['gold', 'Champagne gold', '#e9b850'], ['orange', 'Orange', '#f2a33a']];
@@ -17,10 +17,11 @@ K.markColor = () => (MARKS.find(a => a[0] === A.ui().mark) || MARKS[0])[2];
 K.arrowColor = () => (ARROWS.find(a => a[0] === A.ui().arrow) || ARROWS[0])[2];
 A.ui = () => { const s = S(); s.ui = Object.assign({}, UI_DEF, s.ui || {}); return s.ui; };
 A.boards = [];
+A.applyUI = () => applyUI();
 function applyUI() {
   const u = A.ui();
   document.documentElement.dataset.board = u.board;
-  document.body.classList.toggle('nocoords', !u.coords);
+  document.body.classList.toggle('nocoords', !u.coords); document.body.classList.toggle('zen', !!u.zen); document.body.classList.toggle('streamer', !!u.streamer);
   document.body.dataset.bg = u.bg || 'midnight';
   if (u.bg === 'pieces' && K.PIECESETS) $('#bgfx').style.setProperty('--piecebg', `url("${pieceTile(u.pieces)}")`);
   if (K.PIECESETS && K.PIECESETS[u.pieces]) K.setPieces(K.PIECESETS[u.pieces]);
@@ -34,10 +35,10 @@ function pieceTile(set) {
   const img = spots.map(([p, x, y, r]) => `<image href="${P[p]}" x="${x}" y="${y}" width="56" height="56" transform="rotate(${r} ${x + 28} ${y + 28})"/>`).join('');
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="300">${img}</svg>`);
 }
-const BOARDS = [['blue', '#e8e3d6', '#7a84ab'], ['green', '#ebecd0', '#739552'], ['walnut', '#f0d9b5', '#b58863'], ['graphite', '#d4d4cf', '#7b7e85'], ['night', '#9aa4b1', '#4f5b6b']];
+const BOARDS = [['blue', '#e8e3d6', '#7a84ab'], ['green', '#ebecd0', '#739552'], ['walnut', '#f0d9b5', '#b58863'], ['graphite', '#d4d4cf', '#7b7e85'], ['night', '#9aa4b1', '#4f5b6b'], ['contrast', '#f4f1e8', '#2f5d8a']];
 function renderSettings() {
   const u = A.ui();
-  $('#bgSw').innerHTML = BGS.map(([k, n, css]) => `<button class="bgo${(u.bg || 'midnight') === k ? ' on' : ''}" data-bg="${k}"><i style="background:${k === 'pieces' ? `url('${pieceTile(u.pieces)}') 0 0/90px 90px,#0a0e1c` : css}"></i>${n}</button>`).join('');
+  $('#bgSw').innerHTML = BGS.map(([k, n, css]) => `<button class="bgo${(u.bg || 'midnight') === k ? ' on' : ''}" data-bg="${k}">${A.PLUS_BGS && A.PLUS_BGS.includes(k) && A.locked && A.locked('bg') ? '<span class="lockt">Plus</span>' : ''}<i style="background:${k === 'pieces' ? `url('${pieceTile(u.pieces)}') 0 0/90px 90px,#0a0e1c` : css}"></i>${n}</button>`).join('');
   $('#swatches').innerHTML = BOARDS.map(([n, a, b]) => `<button class="sw${u.board === n ? ' on' : ''}" data-b="${n}" style="--a:${a};--b:${b}" aria-label="${n} board"><i></i><i></i><i></i><i></i></button>`).join('');
   $('#psets').innerHTML = Object.keys(K.PIECESETS || {}).map(n => `<button class="pset${u.pieces === n ? ' on' : ''}" data-p="${n}" aria-label="${n} pieces">${['wn', 'wq', 'bk'].map(p => `<img alt="" src="${K.PIECESETS[n][p]}">`).join('')}</button>`).join('');
   $$('#sndStyle button').forEach(b => b.classList.toggle('on', b.dataset.ss === (u.sstyle || 'wood'))); $('#sVol').value = Math.round((u.volume ?? .8) * 100);
@@ -45,6 +46,7 @@ function renderSettings() {
   $('#markSw').innerHTML = MARKS.map(([k, n, c]) => `<button class="asw sq-sw${u.mark === k ? ' on' : ''}" data-m="${k}" style="--c:${c}"><i></i>${n}</button>`).join('');
   [...document.querySelectorAll('#notSeg button')].forEach(b => b.classList.toggle('on', b.dataset.n === u.notation));
   $('#sSound').checked = u.sound; $('#sCoords').checked = u.coords; $('#sAnim').checked = u.anim;
+  for (const k of ['confirm', 'blunder', 'zen', 'streamer']) { const el = $('#s_' + k); if (el) el.checked = !!u[k]; }
   $('#nameIn').value = S().name || ''; $('#depthIn').value = String(S().depth || 14);
 }
 document.addEventListener('click', e => {
@@ -55,7 +57,7 @@ $('#swatches').onclick = e => { const b = e.target.closest('[data-b]'); if (!b) 
 $('#psets').onclick = e => { const b = e.target.closest('[data-p]'); if (!b) return; A.ui().pieces = b.dataset.p; K.save(); applyUI(); renderSettings(); };
 $('#arrowSw').onclick = e => { const b = e.target.closest('[data-a]'); if (!b) return; A.ui().arrow = b.dataset.a; K.save(); renderSettings(); };
 $('#markSw').onclick = e => { const b = e.target.closest('[data-m]'); if (!b) return; A.ui().mark = b.dataset.m; K.save(); renderSettings(); };
-$('#bgSw').onclick = e => { const b = e.target.closest('[data-bg]'); if (!b) return; A.ui().bg = b.dataset.bg; K.save(); applyUI(); renderSettings(); };
+$('#bgSw').onclick = e => { const b = e.target.closest('[data-bg]'); if (!b) return; if (A.PLUS_BGS && A.PLUS_BGS.includes(b.dataset.bg) && A.locked('bg')) { A.showPlus('bg'); return; } A.ui().bg = b.dataset.bg; K.save(); applyUI(); renderSettings(); };
 $('#notSeg').onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; A.ui().notation = b.dataset.n; K.save(); renderSettings(); A.refresh(); };
 $('#sSound').onchange = e => { A.ui().sound = e.target.checked; K.save(); };
 $('#sndStyle').onclick = e => { const b = e.target.closest('[data-ss]'); if (!b) return; A.ui().sstyle = b.dataset.ss; K.save(); renderSettings(); A.sound('move'); };
@@ -64,8 +66,9 @@ $('#sVol').onchange = () => A.sound('move');
 $('#sndTest').onclick = () => { A.sound('move'); setTimeout(() => A.sound('capture'), 500); setTimeout(() => A.sound('check'), 1000); };
 $('#sCoords').onchange = e => { A.ui().coords = e.target.checked; K.save(); applyUI(); };
 $('#sAnim').onchange = e => { A.ui().anim = e.target.checked; K.save(); applyUI(); };
+for (const k of ['confirm', 'blunder', 'zen', 'streamer']) { const el = $('#s_' + k); if (el) el.onchange = e => { A.ui()[k] = e.target.checked; K.save(); applyUI(); A.refresh && A.refresh(); }; }
 $('#nameIn').onchange = e => { S().name = e.target.value.trim(); K.save(); renderMe(); };
-$('#depthIn').onchange = e => { S().depth = +e.target.value; K.save(); };
+$('#depthIn').onchange = e => { if (+e.target.value > 14 && A.locked('deep')) { e.target.value = String(S().depth || 14); A.showPlus('deep'); return; } S().depth = +e.target.value; K.save(); };
 $('#resetBtn').onclick = () => { $('#resetConfirm').hidden = false; };
 $('#resetNo').onclick = () => { $('#resetConfirm').hidden = true; };
 $('#resetYes').onclick = () => { const s = S(); Object.assign(s, { games: [], reviews: [], drills: [], conv: [], puz: { r: 1000, hist: [], done: {} }, eg: {}, op: {}, days: {}, best: {} }); K.save(); $('#resetConfirm').hidden = true; $('#settings').hidden = true; A.refresh(); A.toast('Progress reset'); };
@@ -213,6 +216,47 @@ A.shareBlob = async (blob, name = 'nextmove-game.png', text = 'My game, reviewed
   A.toast('Image saved. Post it anywhere.');
 };
 A.track = k => { try { window.NM_TRACK && window.NM_TRACK(k); } catch (e) { } };
+// Our own dropdown for long lists: the native one is drawn by the OS and looks broken over some backgrounds.
+// The real <select> stays (hidden) as the source of truth, so existing change handlers keep working.
+A.fancySelect = (sel, placeholder = 'Search') => {
+  if (sel._fancy) { sel._fancy.sync(); return; }
+  const wrap = document.createElement('div'); wrap.className = 'fsel';
+  wrap.innerHTML = `<button type="button" class="fsel-btn" aria-haspopup="listbox" aria-expanded="false"><span></span></button><div class="fsel-pop" hidden><input type="search" placeholder="${K.esc(placeholder)}" aria-label="${K.esc(placeholder)}"><div class="fsel-list" role="listbox"></div></div>`;
+  sel.after(wrap); sel.hidden = true; sel.style.display = 'none';
+  const btn = wrap.querySelector('.fsel-btn'), pop = wrap.querySelector('.fsel-pop'), q = wrap.querySelector('input'), list = wrap.querySelector('.fsel-list');
+  const row = o => `<button type="button" role="option" class="fsel-o${o.value === sel.value ? ' on' : ''}" aria-selected="${o.value === sel.value}" data-v="${K.esc(o.value)}">${K.esc(o.text)}</button>`;
+  const build = () => {
+    const f = q.value.trim().toLowerCase(), hit = o => !f || o.text.toLowerCase().includes(f); let h = '';
+    for (const n of sel.children) {
+      if (n.tagName === 'OPTGROUP') { const os = [...n.children].filter(hit); if (os.length) h += `<div class="fsel-g">${K.esc(n.label)}</div>` + os.map(row).join(''); }
+      else if (hit(n)) h += row(n);
+    }
+    list.innerHTML = h || '<div class="fsel-empty">No matches</div>';
+  };
+  const sync = () => { const o = sel.options[sel.selectedIndex]; btn.firstChild.textContent = o ? o.text : ''; };
+  const open = v => {
+    pop.hidden = !v; btn.setAttribute('aria-expanded', String(v)); wrap.classList.toggle('open', v);
+    if (v) { q.value = ''; build(); const on = list.querySelector('.on'); if (on) list.scrollTop = on.offsetTop - list.clientHeight / 2; if (matchMedia('(pointer: fine)').matches) q.focus(); }
+  };
+  btn.onclick = e => { e.preventDefault(); open(pop.hidden); };
+  q.oninput = build;
+  q.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const b = list.querySelector('[data-v]'); if (b) b.click(); } };
+  list.onclick = e => { e.preventDefault(); const b = e.target.closest('[data-v]'); if (!b) return; sel.value = b.dataset.v; sel.dispatchEvent(new Event('change')); sync(); open(false); btn.focus(); };
+  document.addEventListener('pointerdown', e => { if (!pop.hidden && !wrap.contains(e.target)) open(false); });
+  wrap.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { e.stopPropagation(); open(false); btn.focus(); } });
+  sel._fancy = { sync }; sync();
+};
+// A short gold confetti burst for wins, level-ups and awards (skipped with reduced motion).
+A.confetti = (n = 90) => {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas'); c.className = 'confetti'; const W = c.width = innerWidth, H = c.height = innerHeight; document.body.appendChild(c);
+  const x = c.getContext('2d'); const cols = ['#f6dc9e', '#e2b35e', '#fff4d6', '#9fb1ff', '#7fd69a'];
+  const ps = Array.from({ length: n }, () => ({ x: W / 2 + (Math.random() - .5) * W * .3, y: H * .35, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, r: Math.random() * Math.PI, vr: (Math.random() - .5) * .3, w: 6 + Math.random() * 6, h: 3 + Math.random() * 4, c: cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  (function f(t) { const k = (t - t0) / 1000; x.clearRect(0, 0, W, H);
+    for (const p of ps) { p.vy += .45; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr; x.save(); x.globalAlpha = Math.max(0, 1 - k / 2.2); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); x.restore(); }
+    if (k < 2.2) requestAnimationFrame(f); else c.remove(); })(t0);
+};
 A.toast = msg => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); };
 A.clsChip = cls => { const c = CLS[cls]; return c ? `<em class="ic" style="background:${c.c}" title="${c.t}">${c.i}</em>` : ''; };
 A.legalFor = fenGetter => sq => { const c = new Chess(fenGetter()); return c.moves({ square: sq, verbose: true }).map(m => ({ to: m.to })); };

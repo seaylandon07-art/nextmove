@@ -186,6 +186,7 @@ function startTactics() {
   T.run = null; T.pick = pickRated; puzzle(pickRated());
 }
 function startRun(kind) {
+  if (!A.gate('runs')) return;
   open(kind, kind === 'rush' ? 'Puzzle rush' : 'Puzzle streak');
   if (!A.PUZ.length) { prompt('Puzzles are loading…'); return; }
   T.theme = 'All';
@@ -219,6 +220,8 @@ function endRun(why) {
   tools({});
 }
 function puzzle(p) {
+  if (!p) return;
+  if (!T.run && !A.gate(p.mine ? 'mine' : 'puzzles')) { tools({}); return; }
   T.p = p; T.step = 0; T.alt = false; T.failed = false; T.hintLvl = 0; T.lock = true;
   const color = p.fen.split(' ')[1]; T.color = color; tb.orient = color;
   const isRun = !!T.run;
@@ -369,12 +372,13 @@ function startOpenings() {
   const s = S(); s.opDepth = s.opDepth || 'std';
   prompt('Pick a line and a side', 'The board plays the other side and explains the key moves as you go. Other good theory moves are accepted with a note.');
   const grp = {}; A.COURSES.forEach(l => (grp[l.group] = grp[l.group] || []).push(l));
-  let h = `<div class="seg" id="opDepth" style="margin-bottom:14px">${Object.entries(DEPTHS).map(([k, [n]]) => `<button data-d="${k}"${s.opDepth === k ? ' class="on"' : ''}>${n}</button>`).join('')}</div><div class="picker">`;
+  let h = `<div class="seg" id="opDepth" style="margin-bottom:14px">${Object.entries(DEPTHS).map(([k, [n]]) => `<button data-d="${k}"${s.opDepth === k ? ' class="on"' : ''}>${n}${k === 'full' && A.locked('depth') ? '<span class="lockt">Plus</span>' : ''}</button>`).join('')}</div><div class="picker">`;
   for (const [g, list] of Object.entries(grp)) h += `<h4>${esc(g)}</h4>${list.map(l => { const n = Math.min(l.moves.length, DEPTHS[s.opDepth][1]); const st = s.op[l.name]; return `<div class="prow" data-pl="${esc(l.name)}"><span><b>${esc(l.name)}${st ? `<span class="done">✓ ${st.reps}×</span>` : ''}</b><small>${Math.ceil(n / 2)} moves · ${esc(K.pvSan(K.START, l.moves, 8))}</small></span><span class="row"><button class="btn sec" data-ol="${esc(l.name)}" data-c="w">White</button><button class="btn sec" data-ol="${esc(l.name)}" data-c="b">Black</button></span></div>`; }).join('')}`;
   $('#tList').hidden = false; $('#tList').innerHTML = h + '</div>';
   listPreview(n => A.COURSES.find(l => l.name === n));
   $('#tList').onclick = e => {
-    const d = e.target.closest('[data-d]'); if (d) { s.opDepth = d.dataset.d; K.save(); const sc = $('#tList .picker').scrollTop; startOpenings(); $('#tList .picker').scrollTop = sc; return; }
+    const d = e.target.closest('[data-d]'); if (d && d.dataset.d === 'full' && A.locked('depth')) { A.showPlus('depth'); return; }
+    if (d) { s.opDepth = d.dataset.d; K.save(); const sc = $('#tList .picker').scrollTop; startOpenings(); $('#tList .picker').scrollTop = sc; return; }
     const b = e.target.closest('[data-ol]'); if (!b) return;
     const l = A.COURSES.find(x => x.name === b.dataset.ol); const n = Math.min(l.moves.length, DEPTHS[s.opDepth][1]);
     T.inner = true; T.back = startOpenings; opPlay({ ...l, moves: l.moves.slice(0, n), depth: DEPTHS[s.opDepth][0] }, b.dataset.c);
@@ -386,10 +390,10 @@ function startGambits() {
   const s = S();
   const grp = { 'Gambits for White': A.GAMB.filter(g => g.kind === 'gambit' && g.side === 'w'), 'Gambits for Black': A.GAMB.filter(g => g.kind === 'gambit' && g.side === 'b'), 'Traps': A.GAMB.filter(g => g.kind === 'trap') };
   let h = '<div class="picker">';
-  for (const [g, list] of Object.entries(grp)) h += `<h4>${g}</h4>${list.map(l => `<div class="prow" data-pl="${esc(l.name)}"><span><b>${esc(l.name)}${l.kind === 'trap' ? '<span class="tag">trap</span>' : ''}${s.op[l.name] ? `<span class="done">✓ ${s.op[l.name].reps}×</span>` : ''}</b><small>${esc(K.pvSan(K.START, l.moves, 8))}</small></span><button class="btn sec" data-gl="${esc(l.name)}">Play ${l.side === 'w' ? 'White' : 'Black'}</button><p>${esc(l.idea)}</p></div>`).join('')}`;
+  for (const [g, list] of Object.entries(grp)) h += `<h4>${g}</h4>${list.map(l => `<div class="prow" data-pl="${esc(l.name)}"><span><b>${esc(l.name)}${A.locked('gambit') && A.GAMB.indexOf(l) >= A.FREE.gambits ? '<span class="lockt">Plus</span>' : ''}${l.kind === 'trap' ? '<span class="tag">trap</span>' : ''}${s.op[l.name] ? `<span class="done">✓ ${s.op[l.name].reps}×</span>` : ''}</b><small>${esc(K.pvSan(K.START, l.moves, 8))}</small></span><button class="btn sec" data-gl="${esc(l.name)}">Play ${l.side === 'w' ? 'White' : 'Black'}</button><p>${esc(l.idea)}</p></div>`).join('')}`;
   $('#tList').hidden = false; $('#tList').innerHTML = h + '</div>';
   listPreview(n => A.GAMB.find(x => x.name === n));
-  $('#tList').onclick = e => { const b = e.target.closest('[data-gl]'); if (b) { const l = A.GAMB.find(x => x.name === b.dataset.gl); T.inner = true; T.back = startGambits; opPlay(l, l.side); } };
+  $('#tList').onclick = e => { const b = e.target.closest('[data-gl]'); if (b) { const l = A.GAMB.find(x => x.name === b.dataset.gl); if (A.locked('gambit') && A.GAMB.indexOf(l) >= A.FREE.gambits) { A.showPlus('gambit'); return; } T.inner = true; T.back = startGambits; opPlay(l, l.side); } };
 }
 function opPlay(line, color) {
   $('#tList').hidden = true; $('#tList').onmouseover = null; $('#session .bwrap').hidden = false;

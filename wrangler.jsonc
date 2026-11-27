@@ -16,6 +16,6 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }, { "tag": "v2", "new_sqlite_classes": ["Lobby"] }],
   "triggers": { "crons": ["17 4 * * *"] },
-  "vars": { "ADMINS": "" },
+  "vars": { "ADMINS": "prestiq" },
   "observability": { "enabled": true }
 }

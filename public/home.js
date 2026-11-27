@@ -187,4 +187,11 @@ A.views.home = {
   leave() { clearTimeout(H.t); },
   refresh() { if (A.cur() === 'home') { renderToday(); renderTrain(); } }
 };
+// links: ?join=CODE (friend game), ?fen=... (a shared position), ?import=chesscom|lichess
+setTimeout(() => {
+  const q = new URLSearchParams(location.search); const clean = () => history.replaceState(null, '', location.pathname + location.hash);
+  if (q.get('join')) { const c = q.get('join').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); clean(); A.joinCode(c); }
+  else if (q.get('fen')) { const f = q.get('fen'); clean(); if (new Chess().validate_fen(f).valid) A.openAnalysis(f, [], 0); else A.toast('That position link looks broken'); }
+  else if (q.get('import')) { const site = q.get('import'); clean(); A.go('review'); const b = document.querySelector(`#impSite [data-site="${site === 'lichess' ? 'lichess' : 'chesscom'}"]`); if (b) b.click(); setTimeout(() => { const u = $('#impUser'); if (u) u.focus(); }, 300); }
+}, 600);
 }

@@ -58,6 +58,7 @@ $('#aLines').onclick = e => { const b = e.target.closest('[data-l]'); if (!b) re
 $('#anav').onclick = e => { const b = e.target.closest('[data-nav]'); if (!b) return; const n = b.dataset.nav; if (n === 'flip') { ab.flip(); render(); return; } go(n === 'first' ? 0 : n === 'prev' ? AN.ply - 1 : n === 'next' ? AN.ply + 1 : AN.moves.length); };
 $('#aEngine').onchange = () => { render(); think(); };
 $('#aLoad').onclick = () => { const f = $('#aFen').value.trim(); const c = new Chess(); if (!c.load(f)) { A.toast('That FEN isn’t valid'); return; } AN.start = c.fen(); AN.moves = []; AN.ply = 0; ab.flip(c.turn()); render(); think(); };
+$('#aLink').onclick = () => { const url = `${location.origin}/?fen=${encodeURIComponent(fenAt(AN.ply))}`; navigator.clipboard.writeText(url).then(() => A.toast('Link copied. It opens this position on the board.'), () => A.toast(url)); };
 $('#aCopy').onclick = () => { navigator.clipboard.writeText(fenAt(AN.ply)).then(() => A.toast('FEN copied'), () => A.toast('Copy failed — select the FEN box instead')); };
 $('#aCopyPgn').onclick = () => { const c = new Chess(AN.start); if (AN.start !== K.START) { c.header('SetUp', '1', 'FEN', AN.start); } for (const u of AN.moves) K.mv(c, u); navigator.clipboard.writeText(c.pgn()).then(() => A.toast('PGN copied'), () => A.toast('Copy failed')); };
 $('#aReset').onclick = () => { AN.start = K.START; AN.moves = []; AN.ply = 0; ab.flip('w'); render(); think(); };

@@ -15,12 +15,22 @@ const BOTS = [
 const TCS = { none: null, '1+0': [60, 0], '3+2': [180, 2], '5+3': [300, 3], '10+0': [600, 0] };
 const P = { coach: null, coachLog: [], coachAcc: [], view: null, seenN: 0, mode: 'bot', bot: 3, color: 'w', tc: 'none', open: 'auto', g: null, me: 'w', over: false, thinking: false, clocks: null, showEval: false, evalLine: null, line: null, online: null };
 A.P = P;
+const VALS = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 const pb = A.board($('#play .bd'), {
   movable: () => !P.g || P.over || P.view != null ? null : P.mode === 'local' ? (P.thinking ? null : 'both') : (P.mode === 'online' && !P.online?.started) ? null : P.me,
   legal: sq => P.g.turn() === P.me || P.mode === 'local' ? A.legalFor(() => P.g.fen())(sq) : preDests(sq),
   onMove: (f, t, pr) => userMove(f, t, pr)
 });
 function botObj() { return BOTS[P.bot]; }
+function beatenBots() { const s = S(), out = new Set(); for (const g of s.games) { if (!g.me || g.src !== 'bot') continue; const won = (g.result === '1-0' && g.me === 'w') || (g.result === '0-1' && g.me === 'b'); if (!won) continue; const id = g.bot || (BOTS.find(b => [g.white, g.black].some(n => (n || '').startsWith(b.n + ' ('))) || {}).id; if (id) out.add(id); } return out; }
+// Handicap: the bot starts without a piece (queenside knight or rook, or its queen)
+function handicapFen(botColor, k) {
+  const rows = K.START.split(' ')[0].split('/'); const r = botColor === 'w' ? 7 : 0; const file = { n: 1, r: 0, q: 3 }[k];
+  const exp = rows[r].replace(/\d/g, d => '1'.repeat(+d)).split(''); exp[file] = '1';
+  rows[r] = exp.join('').replace(/1+/g, m => m.length);
+  let cast = 'KQkq'; if (k === 'r') cast = cast.replace(botColor === 'w' ? 'Q' : 'q', '');
+  return `${rows.join('/')} w ${cast} - 0 1`;
+}
 /* ---------- premoves: queue your reply while the opponent is thinking ---------- */
 function preDests(sq) {
   // moves as if it were your turn on the current board; pawns may also aim diagonally at anything
@@ -45,7 +55,9 @@ pb.host.addEventListener('pointerdown', e => {
 // touching the board while looking at an earlier move jumps back to the live position, like the big sites
 pb.host.addEventListener('pointerdown', () => { if (P.g && P.view != null && !pb.drawMode) { P.view = null; render(); } }, true);
 function renderSetup() {
-  $('#bots').innerHTML = BOTS.map((b, i) => `<button class="bot${i === P.bot ? ' on' : ''}" data-i="${i}"><span class="av" data-av="${esc(b.n)}" data-icon="${b.icon || ''}"></span><span><b>${esc(b.n)}</b><small>${esc(b.bio)}</small></span><em>${b.r}</em></button>`).join('');
+  const beat = beatenBots(); $('#botLadder') && ($('#botLadder').textContent = `Ladder: ${beat.size} of ${BOTS.length} beaten`);
+  $('#bots').innerHTML = BOTS.map((b, i) => `<button class="bot${i === P.bot ? ' on' : ''}${beat.has(b.id) ? ' beaten' : ''}" data-i="${i}"><span class="av" data-av="${esc(b.n)}" data-icon="${b.icon || ''}"></span><span><b>${esc(b.n)}</b><small>${esc(b.bio)}</small></span><em>${beat.has(b.id) ? '<i class="won" title="Beaten">✓</i>' : ''}${b.r}</em></button>`).join('');
+  $$('#hcapSeg button').forEach(x => x.classList.toggle('on', x.dataset.hc === (P.hcap || ''))); $('#hcapSec').hidden = P.mode !== 'bot';
   $$('#bots .av').forEach(el => A.avatar(el, el.dataset.av, el.dataset.icon));
   $$('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === P.mode));
   $$('#colorSeg button').forEach(b => b.classList.toggle('on', b.dataset.color === P.color));
@@ -60,19 +72,22 @@ function renderSetup() {
     sel.innerHTML = `<option value="auto">Bot's usual openings</option><option value="none">No opening book</option><optgroup label="Practise an opening">${lines.map(l => `<option value="o:${esc(l.name)}">${esc(l.name)}</option>`).join('')}</optgroup><optgroup label="Practise against a gambit">${A.GAMB.filter(g => g.kind === 'gambit').map(g => `<option value="g:${esc(g.name)}">${esc(g.name)} (${g.side === 'w' ? 'White' : 'Black'})</option>`).join('')}</optgroup>`;
     sel.dataset.filled = 1;
   }
-  sel.value = P.open;
+  sel.value = P.open; if (sel.dataset.filled) A.fancySelect(sel, 'Search openings and gambits');
 }
 $('#bots').onclick = e => { const b = e.target.closest('[data-i]'); if (b) { P.bot = +b.dataset.i; renderSetup(); } };
 $('#setup').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.mode) P.mode = b.dataset.mode; if (b.dataset.color) P.color = b.dataset.color; if (b.dataset.tc) P.tc = b.dataset.tc;
-  if (b.dataset.mode || b.dataset.color || b.dataset.tc) renderSetup();
+  if (b.dataset.hc != null) P.hcap = b.dataset.hc;
+  if (b.dataset.mode || b.dataset.color || b.dataset.tc || b.dataset.hc != null) renderSetup();
 });
 $('#botOpen').onchange = e => { P.open = e.target.value; };
-function names() {
+function names() { const n = names0(); const u = A.ui(); if (u.zen) for (const c of 'wb') n[c] = n[c].replace(/ \(\d+\)$/, ''); return n; }
+const myName = () => A.ui().streamer ? 'You' : (S().name || 'You').split(',')[0].trim() || 'You';
+function names0() {
   if (P.mode === 'local') return { w: 'White', b: 'Black' };
-  if (P.mode === 'online') { const o = P.online || {}; const me = (S().name || 'You').split(',')[0].trim() || 'You'; const them = o.oppName || 'Friend'; return P.me === 'w' ? { w: me, b: them } : { w: them, b: me }; }
-  const b = botObj(), me = (S().name || 'You').split(',')[0].trim() || 'You';
+  if (P.mode === 'online') { const o = P.online || {}; const me = myName(); const them = o.oppName || 'Friend'; return P.me === 'w' ? { w: me, b: them } : { w: them, b: me }; }
+  const b = botObj(), me = myName();
   return P.me === 'w' ? { w: me, b: `${b.n} (${b.r})` } : { w: `${b.n} (${b.r})`, b: me };
 }
 function pickLine(botColor) {
@@ -86,10 +101,11 @@ function pickLine(botColor) {
 }
 function startGame(opts = {}) {
   saveUnfinished();
-  P.pre = null; P.g = new Chess(); P.gid = A.uid(); P.coach = null; P.coachLog = []; P.coachAcc = []; P.eloDelta = null; P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
+  P.pre = null; P.g = new Chess(); P.gid = A.uid(); P.hcapNow = null; P.coach = null; P.coachLog = []; P.coachAcc = []; P.eloDelta = null; P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
   if (P.mode === 'local') P.me = 'w';
   else if (P.mode === 'online') P.me = opts.color;
   else P.me = opts.color || (P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color);
+  if (P.mode === 'bot' && P.hcap) { P.hcapNow = P.hcap; P.g = new Chess(handicapFen(P.me === 'w' ? 'b' : 'w', P.hcap)); }
   const tc = TCS[opts.tc || P.tc]; P.clocks = tc ? { w: tc[0] * 1000, b: tc[0] * 1000, inc: tc[1] * 1000, t: null, base: tc[0] * 1000 } : null;
   P.line = P.mode === 'bot' && !opts.pre ? pickLine(P.me === 'w' ? 'b' : 'w') : null;
   if (opts.pre) for (const u of opts.pre) K.mv(P.g, u);
@@ -115,7 +131,7 @@ A.playFrom = (moves, color, title) => {
   if (title) A.toast(`${title}: your move against ${BOTS[P.bot].n}`);
 };
 $('#startGame').onclick = () => startGame();
-function render(anim) {
+function render(anim) { try { guide(); } catch (e) { }
   const g = P.g; if (!g) { P.view = null; pb.host.classList.remove('viewing'); pb.set(K.START); drawPlayers(); $('#pnav') && $('#pnav').classList.remove('viewing'); return; }
   const h = g.history({ verbose: true }); const n = h.length;
   // any new move (yours, the bot's, your friend's) or a takeback brings you back to the live position
@@ -261,7 +277,7 @@ $('#coachBtn').onclick = () => { const u = A.ui(); u.coach = u.coach === false; 
 function myAcc() { const a = P.coachAcc.filter(x => x != null); return a.length >= 4 ? K.gameAcc(a) : null; }
 function myGameRating() { const s = S(); const prior = s.elo ? s.elo.r - (P.eloDelta || 0) : 1000; return A.gameRating({ accs: P.coachAcc, prior, opp: botObj().r }); }
 function applyElo(res) {
-  const rated = P.mode === 'bot' || (P.mode === 'online' && P.online && P.online.oppR);
+  const rated = P.mode === 'bot' || (P.mode === 'online' && P.online && P.online.oppR && P.g.history().length >= 2);   // aborted online games don't count
   if (!rated) return;
   const s = S(); s.elo = s.elo || { r: 1000, n: 0, hist: [] };
   const opp = P.mode === 'bot' ? botObj().r : P.online.oppR; const score = res === '1/2-1/2' ? .5 : (res === '1-0') === (P.me === 'w') ? 1 : 0;
@@ -303,9 +319,11 @@ function checkEnd() {
 }
 function endGame(res, text, remote) {
   if (P.over) return;
+  if (P.mode === 'online' && P.g.history().length < 2 && !/checkmate|stalemate/i.test(text)) text = `${text} · game aborted, no rating change`;
   P.over = true; P.result = text; P.g.header('Result', res);
   const n = names();
   upsertGame(res); A.queueReview(P.gid); applyElo(res); A.track('game_' + P.mode);
+  if (P.mode !== 'local' && ((res === '1-0' && P.me === 'w') || (res === '0-1' && P.me === 'b'))) A.confetti(); setTimeout(() => A.plusMoment && A.plusMoment('Nice win.'), 4000);
   if (P.mode !== 'local' && ((res === '1-0' && P.me === 'w') || (res === '0-1' && P.me === 'b'))) A.addXP && A.addXP(P.mode === 'bot' ? 10 + Math.round(botObj().r / 100) : 25, 'win');
   K.save(); A.sound('end');
   if (P.mode === 'online' && !remote) pushOnline();
@@ -315,6 +333,43 @@ function endGame(res, text, remote) {
 }
 // Every game against a bot or a friend is kept as it's played, so its mistakes can be reviewed
 // even if it's never finished (new game, closed tab, or you wander off to train).
+// Blunder check (vs bots): warn when a move gives away a piece for nothing. Tap the square again to play it anyway.
+function hangs(from, to, promo) {
+  if (!P.g) return null; const g = new Chess(P.g.fen()); const m = g.move({ from, to, promotion: promo || 'q' }); if (!m) return null;
+  if (g.in_checkmate()) return null;
+  const moved = VALS[promo || m.piece], took = m.captured ? VALS[m.captured] : 0;
+  let worst = 0;
+  for (const c of g.moves({ verbose: true }).filter(x => x.to === to)) {
+    const g2 = new Chess(g.fen()); g2.move(c); const att = VALS[c.piece];
+    const recapture = g2.moves({ verbose: true }).some(x => x.to === to);
+    const loss = recapture ? Math.max(0, moved - att) : moved;
+    worst = Math.max(worst, loss - took);
+  }
+  return worst >= 2 ? `Careful: your ${K.NAME[m.piece] || 'piece'} on ${to} can be taken${worst >= moved ? ' for free' : ''}. Tap ${to} again to play it anyway.` : null;
+}
+pb.o.confirm = (f, t, pr) => {
+  if (!P.g || P.over || P.g.turn() !== P.me) return null;
+  const u = A.ui();
+  if (u.blunder && P.mode === 'bot') { const w = hangs(f, t, pr); if (w) return w; }
+  if (u.confirm && P.mode !== 'local') return `Tap ${t} again to confirm.`;
+  return null;
+};
+pb.o.onPend = why => A.toast(why);
+// Guided first games: plain tips at the right moments for brand-new players (first 2 finished games vs bots)
+function guide() {
+  const el = $('#guideTip'); if (!el) return;
+  const s = S(); const fin = s.games.filter(g => g.result && g.result !== '*').length;
+  if (P.mode !== 'bot' || !P.g || P.over || fin >= 2 || s.noGuide) { el.hidden = true; return; }
+  const mine = P.g.history({ verbose: true }).filter(m => m.color === P.me), n = mine.length;
+  const castled = mine.some(m => m.flags.includes('k') || m.flags.includes('q'));
+  let t = '';
+  if (P.g.in_check() && P.g.turn() === P.me) t = 'You’re in check. Move your king to a safe square, block the attack, or capture the piece giving check.';
+  else if (n === 0) t = P.me === 'w' ? 'Your move. Tap or drag a piece. A great start is moving a centre pawn two squares: e4 or d4.' : 'Your move. Answer in the centre: e5 or d5 are classic replies.';
+  else if (n < 4) t = 'Bring out your knights and bishops next. Pieces that are developed early win games; the queen can wait.';
+  else if (!castled && n < 10) t = 'Castle soon: move your king two squares toward a rook and the rook jumps over. It tucks your king away safely.';
+  else if (n < 14) t = 'Before every move, check: is any of my pieces undefended? Can they take something for free? The blunder check will warn you too.';
+  el.hidden = !t; el.innerHTML = t ? `<b>Tip:</b> ${t}` : '';
+}
 function upsertGame(res) {
   if (!P.g || !P.gid) return; const s = S(); const n = names();
   P.g.header('Result', res || '*');
@@ -450,6 +505,8 @@ async function startMatch(m) {
 }
 $('#seekBtn').onclick = () => A.findOpponent();
 $('#seekCancel').onclick = () => stopSeek();
+$('#hostLink').onclick = () => { const o = P.online; if (!o) return; const url = `${location.origin}/?join=${o.code}`; (navigator.share && matchMedia('(pointer: coarse)').matches ? navigator.share({ title: 'Play me on NextMove', url }).catch(() => { }) : navigator.clipboard.writeText(url).then(() => A.toast('Invite link copied. Send it to your friend.'), () => A.toast(url))); };
+A.joinCode = code => { P.mode = 'online'; newGame(); A.go('play'); renderSetup(); $('#joinCode').value = code; $('#joinBtn').click(); };
 $('#hostBtn').onclick = async () => {
   let code = ''; for (let i = 0; i < 5; i++) code += CODE_CH[Math.floor(Math.random() * CODE_CH.length)];
   const hostColor = P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color;

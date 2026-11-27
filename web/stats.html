@@ -14,8 +14,9 @@ select{background:#121933;color:#eceefb;border:1px solid rgba(160,176,236,.2);bo
 <div class="tiles" id="tiles"></div>
 <div class="chart"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>Daily</b><select id="metric"></select></div><svg id="svg" width="100%" height="200"></svg></div>
 <div class="chart"><table id="tbl"></table></div>
+<div class="chart"><b>Recent errors</b><p class="mute" id="errNone">None reported. Nice.</p><table id="errs"></table></div>
 <script>
-const LABEL = { visit: 'Visits', signup: 'Sign-ups', game_bot: 'Games vs bots', game_online: 'Online games', game_local: 'Pass & play games', review: 'Reviews', import: 'Game imports', puzzle: 'Puzzles', drill: 'Drills', course: 'Opening lines', share: 'Shares', install: 'App installs' };
+const LABEL = { visit: 'Visits', signup: 'Sign-ups', plus_view: 'Plus sheet views', plus_buy: 'Plus purchases', game_bot: 'Games vs bots', game_online: 'Online games', game_local: 'Pass & play games', review: 'Reviews', import: 'Game imports', puzzle: 'Puzzles', drill: 'Drills', course: 'Opening lines', share: 'Shares', install: 'App installs' };
 (async () => {
   let token = null; try { token = localStorage.getItem('nm-token'); } catch (e) { }
   const r = await fetch('/api/stats', { headers: token ? { authorization: 'Bearer ' + token } : {} }); const d = await r.json().catch(() => ({}));
@@ -23,7 +24,7 @@ const LABEL = { visit: 'Visits', signup: 'Sign-ups', game_bot: 'Games vs bots', 
   const days = []; for (let i = 29; i >= 0; i--) days.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
   const by = {}; for (const { day, k, n } of d.rows) { (by[k] = by[k] || {})[day] = n; }
   const sum = (k, from) => days.slice(from).reduce((a, x) => a + ((by[k] || {})[x] || 0), 0);
-  document.getElementById('note').textContent = `${d.users} accounts in total · last 30 days below · counts are cookieless daily totals`;
+  document.getElementById('note').textContent = `${d.users} accounts in total · ${d.plus || 0} on Plus · last 30 days below · counts are cookieless daily totals`;
   document.getElementById('tiles').innerHTML = Object.keys(LABEL).map(k => `<div class="t"><small>${LABEL[k]}</small><b>${sum(k, 0)}</b><span>${sum(k, 23)} this week · ${(by[k] || {})[days[29]] || 0} today</span></div>`).join('');
   const sel = document.getElementById('metric'); sel.innerHTML = Object.keys(LABEL).map(k => `<option value="${k}">${LABEL[k]}</option>`).join('');
   const draw = () => {
@@ -32,6 +33,8 @@ const LABEL = { visit: 'Visits', signup: 'Sign-ups', game_bot: 'Games vs bots', 
       days.map((x, i) => i % 5 === 4 ? `<text x="${i * bw + bw / 2}" y="${H - 4}" fill="#8990b0" font-size="11" text-anchor="middle">${x.slice(5)}</text>` : '').join('') + `<text x="0" y="12" fill="#8990b0" font-size="11">max ${max}</text>`;
   };
   sel.onchange = draw; draw(); addEventListener('resize', draw);
+  if (d.errors && d.errors.length) { document.getElementById('errNone').hidden = true; const e = s => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);
+    document.getElementById('errs').innerHTML = '<tr><th>When</th><th style="text-align:left">Error</th><th style="text-align:left">Where</th></tr>' + d.errors.map(x => `<tr><td>${new Date(x.t).toLocaleString()}</td><td style="text-align:left">${e(x.msg)}</td><td style="text-align:left">${e(x.src)} ${e(x.path)}</td></tr>`).join(''); }
   const keys = Object.keys(LABEL);
   document.getElementById('tbl').innerHTML = `<tr><th>Day</th>${keys.map(k => `<th>${LABEL[k]}</th>`).join('')}</tr>` + days.slice().reverse().map(x => `<tr><td>${x}</td>${keys.map(k => `<td>${(by[k] || {})[x] || ''}</td>`).join('')}</tr>`).join('');
 })();

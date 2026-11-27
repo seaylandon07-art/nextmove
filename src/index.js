@@ -99,7 +99,7 @@ async function recover(request, env) {
 }
 
 /* ---------- daily stats: plain counters, no cookies, no IPs stored ---------- */
-const STAT_KEYS = new Set(['visit', 'game_bot', 'game_online', 'game_local', 'review', 'puzzle', 'drill', 'course', 'import', 'share', 'install', 'signup']);
+const STAT_KEYS = new Set(['visit', 'game_bot', 'game_online', 'game_local', 'review', 'puzzle', 'drill', 'course', 'import', 'share', 'install', 'signup', 'plus_view', 'plus_buy']);
 async function bump(env, k, by = 1) { const day = new Date().toISOString().slice(0, 10); await env.DB.prepare('INSERT INTO daily_stats (day, k, n) VALUES (?, ?, ?) ON CONFLICT(day, k) DO UPDATE SET n = n + excluded.n').bind(day, k, by).run(); }
 async function event(request, env) {
   const body = await readBody(request); const k = String(body?.k || '');
@@ -190,6 +190,13 @@ async function handleApi(request, env, url, ctx) {
   const method = request.method;
 
   if (path === '/api/import' && method === 'GET') return importGames(url, env, ctx);
+  if (path === '/api/err' && method === 'POST') {   // client error reports, so we hear about breakage without waiting for players to tell us
+    const b = await request.json().catch(() => ({})); const clip = (v, n) => String(v || '').slice(0, n);
+    await env.DB.prepare('INSERT INTO errors (t, msg, src, ua, path) VALUES (?, ?, ?, ?, ?)').bind(Date.now(), clip(b.msg, 500), clip(b.src, 300), clip(request.headers.get('user-agent'), 200), clip(b.path, 100)).run();
+    return json({ ok: true });
+  }
+  if (path === '/api/billing/config' && method === 'GET') return json({ enabled: billingOn(env), price: '$2.99', yearly: env.STRIPE_PRICE_YEAR ? '$24.99' : null, trialDays: +(env.TRIAL_DAYS || 0) });
+  if (path === '/api/stripe/webhook' && method === 'POST') return stripeWebhook(request, env);
   if (path === '/api/signup' && method === 'POST') return signup(request, env);
   if (path === '/api/recover' && method === 'POST') return recover(request, env);
   if (path === '/api/ev' && method === 'POST') return event(request, env);
@@ -212,9 +219,12 @@ async function handleApi(request, env, url, ctx) {
   if (!user) return error('Not signed in.', 401);
 
   if (path === '/api/me' && method === 'GET') {
-    const row = await env.DB.prepare('SELECT email, recovery_hash FROM users WHERE id = ?').bind(user.id).first();
-    return json({ user: { id: user.id, username: user.username, email: row?.email || null, hasRecovery: !!row?.recovery_hash, admin: (env.ADMINS || '').toLowerCase().split(',').map(x => x.trim()).includes(user.username.toLowerCase()) } });
+    const row = await env.DB.prepare('SELECT email, recovery_hash, plan, plan_until, founder FROM users WHERE id = ?').bind(user.id).first();
+    const plus = isAdmin(env, user.username) || (row?.plan === 'plus' && (row.plan_until || 0) > Date.now());
+    return json({ user: { id: user.id, username: user.username, email: row?.email || null, hasRecovery: !!row?.recovery_hash, plan: plus ? 'plus' : 'free', planUntil: row?.plan_until || null, founder: !!row?.founder, admin: isAdmin(env, user.username) } });
   }
+  if (path === '/api/billing/checkout' && method === 'POST') return checkout(request, env, user, await request.json().catch(() => ({})));
+  if (path === '/api/billing/portal' && method === 'POST') return portal(request, env, user);
   if (path === '/api/recovery' && method === 'POST') return json({ recoveryCode: await setRecovery(env, user.id) });
   if (path === '/api/email' && method === 'PUT') {
     const body = await readBody(request); const email = String(body?.email || '').trim();
@@ -228,7 +238,9 @@ async function handleApi(request, env, url, ctx) {
     const since = new Date(Date.now() - 60 * 86400e3).toISOString().slice(0, 10);
     const rows = await env.DB.prepare('SELECT day, k, n FROM daily_stats WHERE day >= ? ORDER BY day').bind(since).all();
     const users = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first();
-    return json({ rows: rows.results, users: users.n });
+    const plus = await env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE plan = 'plus' AND plan_until > ?").bind(Date.now()).first();
+    const errs = await env.DB.prepare('SELECT t, msg, src, path FROM errors ORDER BY id DESC LIMIT 25').all();
+    return json({ rows: rows.results, users: users.n, plus: plus.n, errors: errs.results });
   }
   if (path === '/api/logout' && method === 'POST') {
     await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -270,6 +282,7 @@ export default {
     const now = Date.now();
     await env.DB.prepare('DELETE FROM sessions WHERE expires < ?').bind(now).run();
     await env.DB.prepare('DELETE FROM attempts WHERE reset < ?').bind(now).run();
+    await env.DB.prepare('DELETE FROM errors WHERE id NOT IN (SELECT id FROM errors ORDER BY id DESC LIMIT 1000)').run();
   }
 };
 
@@ -366,4 +379,63 @@ export class Lobby extends DurableObject {
 
   async webSocketClose(ws) { try { ws.close(); } catch { } }
   async webSocketError() { }
+}
+
+/* ---------- NextMove Plus billing (Stripe) ----------
+ * Off until STRIPE_SECRET and STRIPE_PRICE are set (Cloudflare → Worker → Settings → Variables, as secrets).
+ * STRIPE_WEBHOOK_SECRET verifies webhook calls. TRIAL_DAYS (optional) adds a free trial. */
+const isAdmin = (env, name) => (env.ADMINS || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean).includes(String(name).toLowerCase());
+const billingOn = env => !!(env.STRIPE_SECRET && env.STRIPE_PRICE);
+async function stripe(env, path, params) {
+  const body = new URLSearchParams(); for (const [k, v] of Object.entries(params || {})) if (v != null) body.append(k, String(v));
+  const r = await fetch('https://api.stripe.com/v1/' + path, { method: params ? 'POST' : 'GET', headers: { authorization: 'Bearer ' + env.STRIPE_SECRET, 'content-type': 'application/x-www-form-urlencoded' }, body: params ? body : undefined });
+  const d = await r.json(); if (!r.ok) throw new Error((d.error && d.error.message) || 'Stripe error'); return d;
+}
+async function checkout(request, env, user, body = {}) {
+  if (!billingOn(env)) return error('NextMove Plus isn’t available yet.', 503);
+  const origin = new URL(request.url).origin;
+  const row = await env.DB.prepare('SELECT email, stripe_customer FROM users WHERE id = ?').bind(user.id).first();
+  const price = body.period === 'year' && env.STRIPE_PRICE_YEAR ? env.STRIPE_PRICE_YEAR : env.STRIPE_PRICE;
+  const p = { mode: 'subscription', 'line_items[0][price]': price, 'line_items[0][quantity]': 1, client_reference_id: user.id,
+    'metadata[user_id]': user.id, 'subscription_data[metadata][user_id]': user.id, allow_promotion_codes: 'true',
+    success_url: origin + '/?plus=welcome#home', cancel_url: origin + '/#home' };
+  if (row?.stripe_customer) p.customer = row.stripe_customer; else if (row?.email) p.customer_email = row.email;
+  if (+env.TRIAL_DAYS > 0) p['subscription_data[trial_period_days]'] = +env.TRIAL_DAYS;
+  try { const s = await stripe(env, 'checkout/sessions', p); return json({ url: s.url }); } catch (e) { return error(e.message, 502); }
+}
+async function portal(request, env, user) {
+  if (!billingOn(env)) return error('Billing isn’t set up yet.', 503);
+  const row = await env.DB.prepare('SELECT stripe_customer FROM users WHERE id = ?').bind(user.id).first();
+  if (!row?.stripe_customer) return error('No subscription found for this account.', 404);
+  try { const s = await stripe(env, 'billing_portal/sessions', { customer: row.stripe_customer, return_url: new URL(request.url).origin + '/#progress' }); return json({ url: s.url }); } catch (e) { return error(e.message, 502); }
+}
+async function verifyStripe(request, env, raw) {
+  const sig = request.headers.get('stripe-signature') || ''; const parts = Object.fromEntries(sig.split(',').map(x => x.split('=')));
+  if (!env.STRIPE_WEBHOOK_SECRET || !parts.t || !parts.v1) return false;
+  if (Math.abs(Date.now() / 1000 - +parts.t) > 300) return false;
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.STRIPE_WEBHOOK_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(parts.t + '.' + raw)));
+  const hex = [...mac].map(b => b.toString(16).padStart(2, '0')).join('');
+  return sig.split(',').some(x => x === 'v1=' + hex);
+}
+async function stripeWebhook(request, env) {
+  const raw = await request.text();
+  if (!(await verifyStripe(request, env, raw))) return error('Bad signature.', 400);
+  const ev = JSON.parse(raw); const o = ev.data && ev.data.object || {};
+  const setPlan = async (where, val, until) => env.DB.prepare(`UPDATE users SET plan = ?, plan_until = ? WHERE ${where} = ?`).bind(until > Date.now() ? 'plus' : 'free', until, val).run();
+  if (ev.type === 'checkout.session.completed' && o.client_reference_id) {
+    await env.DB.prepare('UPDATE users SET stripe_customer = ? WHERE id = ?').bind(o.customer, o.client_reference_id).run();
+    // the first 500 subscribers are Founders, for good
+    const f = await env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE founder = 1').first();
+    if ((f?.n || 0) < 500) await env.DB.prepare('UPDATE users SET founder = 1 WHERE id = ? AND founder IS NULL').bind(o.client_reference_id).run();
+    if (o.subscription) { const sub = await stripe(env, 'subscriptions/' + o.subscription); await setPlan('id', o.client_reference_id, sub.current_period_end * 1000 + 3 * 864e5); }
+    await bump(env, 'plus_buy');
+  } else if (ev.type && ev.type.startsWith('customer.subscription.')) {
+    const live = ['active', 'trialing', 'past_due'].includes(o.status) && ev.type !== 'customer.subscription.deleted';
+    const until = live ? (o.current_period_end || (o.items && o.items.data && o.items.data[0] && o.items.data[0].current_period_end) || 0) * 1000 + 3 * 864e5 : Date.now() - 1;
+    const uid = o.metadata && o.metadata.user_id;
+    if (uid) { await env.DB.prepare('UPDATE users SET stripe_customer = COALESCE(stripe_customer, ?) WHERE id = ?').bind(o.customer, uid).run(); await setPlan('id', uid, until); }
+    else await setPlan('stripe_customer', o.customer, until);
+  }
+  return json({ ok: true });
 }

@@ -170,6 +170,17 @@
     btn.querySelector('span').textContent = 'Sign in'; btn.hidden = !!user;
     const me = document.getElementById('meCard'); if (me) me.hidden = !user;
   }
+  // report uncaught errors (at most 5 per visit) so breakage shows up on the stats page
+  let errN = 0; const report = (msg, src) => { if (errN++ >= 5) return; try { fetch('/api/err', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ msg: String(msg), src: String(src || ''), path: location.hash }), keepalive: true }).catch(() => { }); } catch (e) { } };
+  addEventListener('error', e => { if (e.message) report(e.message, `${e.filename || ''}:${e.lineno || ''}:${e.colno || ''}`); });
+  addEventListener('unhandledrejection', e => { const r = e.reason; report(r && (r.message || r), r && r.stack ? r.stack.split('\n')[1] : ''); });
+  // hooks for NextMove Plus (plus.js)
+  window.NM_ACCOUNT = () => openDialog();
+  window.NM_PLAN = () => (user && user.plan) || 'free';
+  window.NM_FOUNDER = () => !!(user && user.founder);
+  window.NM_READY = () => ready;
+  window.NM_API = api;
+  window.NM_REFRESH_ME = async () => { try { user = (await api('/me')).user; } catch (e) { } renderBadge(); window.A && A.refresh && A.refresh(); return user; };
   window.addEventListener('load', async () => {
     const foot = document.querySelector('.sidefoot');
     if (foot) { const b = document.createElement('button'); b.className = 'linkbtn'; b.id = 'acctBtn'; b.innerHTML = '<svg class="i"><use href="#i-users"/></svg><span>Sign in</span>'; b.onclick = openDialog; foot.insertBefore(b, foot.querySelector('[data-open]')); }

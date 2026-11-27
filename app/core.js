@@ -447,6 +447,12 @@ class Board {
   down(e) {
     if (!this.promo.hidden) return;
     const sq = this.sqAt(e); if (!sq) return;
+    if (this.pend) {   // a move waiting for confirmation: tap its square again to play it, anywhere else to cancel
+      const p = this.pend; this.pend = null; e.preventDefault();
+      if (sq === p.to) { this.confirmed = true; this.finish(p.from, p.to, p.promo); this.confirmed = false; }
+      else { this.render(); if (this.o.onPendCancel) this.o.onPendCancel(); }
+      return;
+    }
     if (e.button === 2 || this.drawMode) { this.rdown = sq; this.rmod = e; try { this.host.setPointerCapture(e.pointerId); } catch (er) { } e.preventDefault(); return; }
     if (this.uArrows && (this.uArrows.length || Object.keys(this.uMarks || {}).length)) { this.uArrows = []; this.uMarks = {}; this.render(); }
     // touch: press and hold a square to start drawing an arrow (or a highlight if released in place)
@@ -512,6 +518,10 @@ class Board {
     this.promo.onpointerdown = e => e.stopPropagation();
   }
   finish(from, to, promo) {
+    if (!this.confirmed && this.o.confirm) {   // confirm-move setting, or a blunder warning
+      const why = this.o.confirm(from, to, promo);
+      if (why) { this.sel = null; this.dests = []; this.pend = { from, to, promo }; this.render(); const el = this.sqs.querySelector(`[data-sq="${to}"]`); if (el) el.classList.add('pend'); if (this.o.onPend) this.o.onPend(why, from, to); return; }
+    }
     this.sel = null; this.dests = [];
     this.lastWasDrag = !!this.noAnimNext; this.landNext = this.noAnimNext ? to : null; this.noAnimNext = false;
     const ok = this.o.onMove ? this.o.onMove(from, to, promo) : false;

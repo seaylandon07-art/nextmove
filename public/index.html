@@ -49,7 +49,7 @@ svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-widt
 ::selection{background:rgba(241,207,134,.3)}
 /* shell */
 .app{min-height:100%;padding-left:104px}
-.topbar{display:flex;align-items:center;gap:10px;height:68px;padding:0 clamp(14px,3vw,40px);max-width:1360px;margin:0 auto}
+.topbar{display:flex;align-items:center;gap:10px;height:60px;padding:0 clamp(14px,3vw,40px);max-width:1520px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:18px;letter-spacing:-.015em;font-stretch:88%}
 .brand b{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:var(--acc-ink);background:linear-gradient(160deg,#f8e2b0,#d9a952);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 6px 18px -6px rgba(241,207,134,.6)}
 .brand b svg{width:25px;height:25px}
@@ -76,12 +76,12 @@ background:rgba(17,23,46,.72);-webkit-backdrop-filter:blur(20px) saturate(1.5);b
 .dock svg.i{width:21px;height:21px}
 .dock .pill{position:absolute;z-index:0;left:0;top:0;border-radius:23px;background:linear-gradient(170deg,#f9e5b8,#e2b45f);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 8px 22px -6px rgba(241,207,134,.55);transition:transform .5s var(--spring),width .5s var(--spring),height .5s var(--spring),opacity .2s;opacity:0}
 .dock .pill.ready{opacity:1}
-main{padding:4px clamp(14px,3vw,40px) 48px;max-width:1360px;margin:0 auto;width:100%}
+main{padding:4px clamp(14px,3vw,40px) 48px;max-width:1520px;margin:0 auto;width:100%}
 .view{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,380px);gap:clamp(16px,2.4vw,32px);align-items:start;animation:viewIn .42s var(--out)}
 @keyframes viewIn{from{opacity:0;transform:translateY(8px)}}
 .view.wide{grid-template-columns:minmax(0,1fr)}
 /* board */
-.stage{display:flex;flex-direction:column;gap:8px;width:100%;max-width:min(740px,calc(100svh - 225px));margin-inline:auto;position:relative}
+.stage{display:flex;flex-direction:column;gap:8px;width:100%;max-width:min(980px,calc(100svh - 150px));margin-inline:auto;position:relative}
 .stage::before{content:'';position:absolute;inset:8% -6% 0;background:radial-gradient(closest-side,rgba(122,132,190,.22),transparent);filter:blur(30px);z-index:-1;pointer-events:none}
 .bwrap{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px}
 .bwrap.noeval{grid-template-columns:minmax(0,1fr)}.bwrap.noeval .evalbar{display:none}
@@ -171,8 +171,8 @@ box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 10px 24px -10px rgba(241,207,134
 .tools .btn:hover{background:var(--glass);color:var(--ink);filter:none}
 .tools .btn.on{color:var(--acc2)}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-input[type=text],input[type=password],select,textarea{background:rgba(6,9,22,.5);border:0;box-shadow:inset 0 0 0 1px var(--line);border-radius:12px;padding:9px 13px;min-height:42px;width:100%;font-size:16px;transition:box-shadow .2s}
-@media(min-width:700px){input[type=text],input[type=password],select,textarea{font-size:14.5px}}
+input[type=text],input[type=search],input[type=password],select,textarea{background:rgba(6,9,22,.5);border:0;box-shadow:inset 0 0 0 1px var(--line);border-radius:12px;padding:9px 13px;min-height:42px;width:100%;font-size:16px;transition:box-shadow .2s}
+@media(min-width:700px){input[type=text],input[type=search],input[type=password],select,textarea{font-size:14.5px}}
 input[type=checkbox],input[type=radio],input[type=range]{accent-color:var(--acc)}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;box-shadow:inset 0 0 0 1px rgba(241,207,134,.7),0 0 0 4px rgba(241,207,134,.14)}
 select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%);background-position:calc(100% - 18px) 52%,calc(100% - 13px) 52%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
@@ -322,7 +322,7 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
 .code{font-size:44px;font-weight:600;letter-spacing:.14em;text-align:center;padding:14px;color:var(--acc2);background:rgba(241,207,134,.06);border-radius:16px;box-shadow:inset 0 0 0 1px rgba(241,207,134,.25)}
 .fig.empty{display:none}
 @media(max-width:1060px){.view{grid-template-columns:minmax(0,1fr) minmax(300px,340px)}}
-@media(max-width:900px){.view{grid-template-columns:minmax(0,1fr)}.groups{grid-template-columns:minmax(0,1fr)}#progress{grid-template-columns:minmax(0,1fr)}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stage{max-width:min(720px,100%)}}
+@media(max-width:900px){.view{grid-template-columns:minmax(0,1fr)}.groups{grid-template-columns:minmax(0,1fr)}#progress{grid-template-columns:minmax(0,1fr)}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stage{max-width:min(860px,100%)}}
 @media(max-width:700px){
   .app{padding-left:0}
   .topbar{height:auto;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(10,14,28,.92),rgba(10,14,28,.7));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
@@ -538,6 +538,54 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
 .wk .up{color:#7fd69a}.wk .dn{color:#ff8b7a}
 .wfocus{margin:14px 0 0;padding:12px 14px;border-radius:14px;background:rgba(241,207,134,.07);box-shadow:inset 0 0 0 1px rgba(241,207,134,.22);font-size:14.5px}
 .wfocus:empty{display:none}
+.fsel{position:relative;margin-top:6px}
+.fsel-btn{all:unset;box-sizing:border-box;display:flex;align-items:center;width:100%;min-height:42px;padding:9px 38px 9px 13px;border-radius:12px;background:rgba(6,9,22,.72);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer;font-size:14.5px;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fsel-btn span{overflow:hidden;text-overflow:ellipsis}
+.fsel-btn::after{content:"";position:absolute;right:15px;top:50%;width:7px;height:7px;border-right:2px solid var(--mute);border-bottom:2px solid var(--mute);transform:translateY(-70%) rotate(45deg);transition:transform .2s}
+.fsel.open .fsel-btn::after{transform:translateY(-30%) rotate(-135deg)}
+.fsel-btn:focus-visible{box-shadow:inset 0 0 0 2px #f1cf86}
+.fsel-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;padding:8px;border-radius:16px;background:#111733;box-shadow:inset 0 0 0 1px rgba(160,176,236,.18),0 24px 48px -12px rgba(0,0,0,.85)}
+.fsel-pop input{margin-bottom:6px}
+.fsel-list{max-height:min(340px,50vh);overflow:auto;overscroll-behavior:contain}
+.fsel-g{padding:10px 10px 4px;font-size:12px;font-weight:600;color:var(--mute)}
+.fsel-o{all:unset;box-sizing:border-box;display:block;width:100%;padding:8px 10px;border-radius:10px;font-size:14px;cursor:pointer}
+.fsel-o:hover,.fsel-o:focus-visible{background:rgba(150,166,232,.12)}
+.fsel-o.on{background:rgba(241,207,134,.14);color:#f6dc9e}
+.fsel-empty{padding:14px 10px;color:var(--mute);font-size:14px}
+select option,select optgroup{background:#111733;color:#eceefb}
+.pluschip{all:unset;cursor:pointer;margin-right:8px;padding:7px 14px;border-radius:999px;font-weight:700;font-size:13.5px;color:#1a1305;background:linear-gradient(180deg,#f6dc9e,#e2b35e);box-shadow:0 6px 18px -6px rgba(226,179,94,.6)}
+.pluschip.have{background:rgba(241,207,134,.12);color:#f6dc9e;box-shadow:inset 0 0 0 1px rgba(241,207,134,.4)}
+.pluschip:focus-visible{outline:2px solid #f1cf86;outline-offset:2px}
+.plusdlg{max-width:560px;width:100%;position:relative;padding:26px 24px 0;max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;border-radius:24px;background:linear-gradient(180deg,#151c3d,#0d1226);box-shadow:inset 0 0 0 1px rgba(160,176,236,.16),0 40px 80px -20px rgba(0,0,0,.8);animation:rise .3s var(--out)}
+.plusdlg .pbuy{position:sticky;bottom:0;margin:16px -24px 0;border-radius:0;padding:14px 24px;background:linear-gradient(180deg,rgba(21,28,61,.92),#121937);backdrop-filter:blur(8px);box-shadow:inset 0 1px 0 rgba(241,207,134,.25)}
+.plusdlg .pfine{margin:0 -24px;padding:0 24px 18px;background:#121937}
+@keyframes rise{from{transform:translateY(14px);opacity:0}}.plusdlg .x{position:absolute;top:10px;right:10px}
+.phero h2{margin:10px 0 6px;font-size:24px;letter-spacing:-.01em}.pwhy{color:var(--mute);margin:0 0 16px;font-size:14.5px}
+.pmark{display:inline-block;padding:4px 10px;border-radius:999px;font-weight:800;font-size:12.5px;color:#1a1305;background:linear-gradient(180deg,#f6dc9e,#e2b35e)}
+.ptab{width:100%;border-collapse:collapse;font-size:13.5px}.ptab th{text-align:left;color:var(--mute);font-weight:600;padding:0 8px 8px}.ptab th:last-child{color:#f6dc9e}
+.ptab td{padding:8px;border-top:1px solid rgba(160,176,236,.08);vertical-align:top}.ptab td:first-child{padding-left:0}.ptab td:nth-child(2){color:var(--mute)}.ptab td:last-child{color:#f6dc9e;font-weight:600}
+.pbuy{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;padding:14px 16px;border-radius:16px;background:rgba(241,207,134,.08);box-shadow:inset 0 0 0 1px rgba(241,207,134,.28)}
+.pbuy b{font-size:22px;display:block}.pbuy small{color:var(--mute);font-size:12.5px}.pfine{margin:10px 2px 0}
+.lockt{display:inline-flex;align-items:center;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:800;color:#1a1305;background:#f1cf86;vertical-align:middle}
+.bgo{position:relative}.bgo .lockt{position:absolute;top:6px;right:6px;margin:0}
+.pwho .pbadge{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800;color:#1a1305;background:linear-gradient(180deg,#f6dc9e,#e2b35e);vertical-align:middle}
+@media(max-width:700px){.pluschip{padding:6px 11px;font-size:12.5px;margin-right:4px}.ptab{font-size:12.5px}.plusdlg{padding:22px 18px 0}.plusdlg .pbuy{margin:14px -18px 0;padding:12px 18px}.plusdlg .pfine{margin:0 -18px;padding:0 18px 16px}.phero h2{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.plusdlg{animation:none}}
+.hint-touch{display:none}@media(pointer:coarse){.hint-fine{display:none}.hint-touch{display:inline}}
+.sq.pend::after{content:"";position:absolute;inset:6%;border-radius:50%;box-shadow:inset 0 0 0 4px #f1cf86;animation:pendp 1s ease-in-out infinite;z-index:3;pointer-events:none}
+@keyframes pendp{50%{box-shadow:inset 0 0 0 4px rgba(241,207,134,.35)}}
+[data-board=contrast]{--sqL:#f4f1e8;--sqD:#2f5d8a}
+[data-board=contrast] .sq.last::before{background:repeating-linear-gradient(45deg,rgba(255,196,0,.7) 0 5px,rgba(255,196,0,.25) 5px 10px)}
+body.zen #coachBox,body.zen #overRatings,body.zen .evalbar,body.zen #evalBtn{display:none!important}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:95}
+body.streamer #meCard{visibility:hidden}
+.bot em .won{font-style:normal;color:#7fd69a;margin-right:6px}
+.turnpt{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;margin-bottom:10px;padding:12px 14px;border-radius:14px;background:rgba(255,120,100,.08);box-shadow:inset 0 0 0 1px rgba(255,139,122,.35)}.turnpt b{display:block;font-size:14px;margin-bottom:3px;color:#ffb3a7}.turnpt span{font-size:13.5px;color:var(--ink)}.turnpt:focus-visible{outline:2px solid #f1cf86}
+#guideTip{margin:0 0 10px;padding:10px 14px;border-radius:14px;background:rgba(127,214,154,.08);box-shadow:inset 0 0 0 1px rgba(127,214,154,.3);font-size:14px}#guideTip b{color:#9fe3b5}
+.heat{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;max-width:320px;border-radius:12px;overflow:hidden}.heat i{position:relative;display:block}.heat i.l{background:#e8e3d6}.heat i.d{background:#7a84ab}.heat i::after{content:"";position:absolute;inset:0;background:#ff5a4a;opacity:var(--h,0)}.heat i span{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);z-index:1}
+#plusNudge{position:fixed;right:18px;bottom:18px;z-index:85;max-width:340px;padding:14px 16px;border-radius:18px;background:#141b3a;box-shadow:inset 0 0 0 1px rgba(241,207,134,.35),0 20px 40px -12px rgba(0,0,0,.8);transform:translateY(20px);opacity:0;pointer-events:none;transition:.35s var(--out)}#plusNudge.show{transform:none;opacity:1;pointer-events:auto}#plusNudge b{display:block;margin-bottom:4px}#plusNudge span{font-size:13.5px;color:var(--mute)}@media(max-width:700px){#plusNudge{left:12px;right:12px;bottom:92px;max-width:none}}
+.pper{margin-bottom:8px}.pper button{padding:5px 10px;font-size:12.5px}
+@media(max-width:700px){.view>.stage,.view .stage{margin-inline:-10px;width:calc(100% + 20px);max-width:none}.stage .pl,.stage .navr{padding-inline:10px}.stage .board{border-radius:0}.stage .bwrap{gap:0;grid-template-columns:6px minmax(0,1fr)}.stage .bwrap.noeval{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -647,6 +695,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
     <div class="brand"><b><svg><use href="#logo"/></svg></b><span>NextMove</span></div>
     <span class="sp"></span>
     <span class="eng engState">Loading engine…</span>
+    <button class="pluschip" id="plusChip" type="button" hidden onclick="A.showPlus('menu')">Get Plus</button>
     <div class="sidefoot">
       <button class="me" id="meCard" type="button"></button>
       <button class="iconbtn" data-open="settings" aria-label="Settings"><svg class="i"><use href="#i-gear"/></svg></button>
@@ -720,7 +769,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
       <div><b>Openings that go deep</b><p>58 main lines up to 20 moves, plus gambits and traps, with the ideas explained.</p></div>
     </div>
   </div>
-  <footer class="hfoot"><span>NextMove</span><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="licenses.html">Licences</a><span>Engine: Stockfish 17.1</span></footer>
+  <footer class="hfoot"><span>NextMove</span><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="licenses.html">Licences</a><a href="help.html">Help</a><a href="from-chess-com.html">Coming from chess.com?</a><span>Engine: Stockfish 17.1</span></footer>
 </section>
 
 <!-- PLAY -->
@@ -735,7 +784,8 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
       <section>
         <div class="seg" id="modeSeg"><button data-mode="bot"><svg class="mart"><use href="#ill-bot"/></svg>Computer</button><button data-mode="local"><svg class="mart"><use href="#ill-local"/></svg>Same device</button><button data-mode="online"><svg class="mart"><use href="#ill-online"/></svg>Online</button></div>
       </section>
-      <section id="botSec"><h3>Opponent</h3><div class="bots" id="bots"></div></section>
+      <section id="botSec"><h3>Opponent <span class="small mute" id="botLadder" style="font-weight:500;margin-left:6px"></span></h3><div class="bots" id="bots"></div></section>
+      <section id="hcapSec"><h3>Handicap</h3><div class="seg" id="hcapSeg"><button data-hc="">None</button><button data-hc="n">Bot without a knight</button><button data-hc="r">Without a rook</button><button data-hc="q">Without its queen</button></div></section>
       <section id="openSec"><label class="f">Bot opening<select id="botOpen"></select></label></section>
       <section id="onlineSec" hidden>
         <div id="seekSec"><h3>Play someone new</h3><p class="small mute" style="margin-bottom:10px">We pair you with a player near your rating on the clock you pick below. Online games count toward your rating.</p>
@@ -744,7 +794,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
           <h3 style="margin-top:18px">Play a friend</h3></div>
         <p class="small mute" style="margin-bottom:10px">Create a game and send your friend the code, or enter theirs.</p>
         <div class="row" style="gap:8px"><button class="btn" id="hostBtn"><svg class="i"><use href="#i-plus"/></svg> Create game</button><input type="text" id="joinCode" placeholder="Code" maxlength="6" style="width:110px;text-transform:uppercase"><button class="btn sec" id="joinBtn">Join</button></div>
-        <div id="hostBox" hidden style="margin-top:12px"><h3>Send this code to your friend</h3><div class="code" id="hostCode"></div><p class="small mute" id="hostWait" style="margin-top:8px">Waiting for them to join…</p></div>
+        <div id="hostBox" hidden style="margin-top:12px"><h3>Send this code to your friend</h3><div class="code" id="hostCode"></div><button class="btn sec" id="hostLink" type="button" style="margin-top:10px"><svg class="i"><use href="#i-copy"/></svg>Copy invite link</button><p class="small mute" id="hostWait" style="margin-top:8px">Waiting for them to join…</p></div>
       </section>
       <section id="colorSec"><h3>Your colour</h3><div class="seg" id="colorSeg"><button data-color="w">White</button><button data-color="r">Random</button><button data-color="b">Black</button></div></section>
       <section id="clockSec"><h3>Clock</h3><div class="seg" id="tcSeg"><button data-tc="none">None</button><button data-tc="1+0">1+0</button><button data-tc="3+2">3+2</button><button data-tc="5+3">5+3</button><button data-tc="10+0">10+0</button></div></section>
@@ -752,6 +802,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
     </div>
     <div id="ingame" hidden>
       <div class="ph"><span class="status"><i class="dot" id="pdot"></i><span id="pstatus">White to move</span></span><span class="sp mute small" id="popen"></span></div>
+      <p id="guideTip" hidden></p>
       <div class="coach" id="coachBox" hidden></div>
       <ol class="sheet" id="pmoves"></ol>
       <div class="pnav" id="pnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Back to the game"><svg class="i"><use href="#i-last"/></svg></button></div>
@@ -779,7 +830,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
   </div>
   <aside class="panel">
     <div id="rInput">
-      <div class="ph"><h2>Game review</h2><span class="sp small mute">Unlimited and free</span></div>
+      <div class="ph"><h2>Game review</h2><span class="sp small mute" id="revQuota">Every move explained</span></div>
       <section id="impSec" hidden>
         <h3>Your games from Chess.com or Lichess</h3>
         <div class="seg" id="impSite"><button data-site="chesscom" class="on">Chess.com</button><button data-site="lichess">Lichess</button></div>
@@ -826,8 +877,8 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
     <ol class="sheet" id="aMoves" style="max-height:220px;border-top:1px solid var(--line)"></ol>
     <section>
       <label class="f">Position (FEN)<input type="text" id="aFen" spellcheck="false"></label>
-      <div class="row" style="margin-top:8px"><button class="btn sec" id="aLoad">Load FEN</button><button class="btn sec" id="aCopy"><svg class="i"><use href="#i-copy"/></svg>Copy FEN</button><button class="btn sec" id="aCopyPgn"><svg class="i"><use href="#i-copy"/></svg>Copy PGN</button><button class="btn quiet" id="aReset">Reset</button></div>
-      <p class="small mute" style="margin-top:10px">Right-click and drag to draw arrows; right-click a square to circle it.</p>
+      <div class="row" style="margin-top:8px"><button class="btn sec" id="aLoad">Load FEN</button><button class="btn sec" id="aLink" type="button"><svg class="i"><use href="#i-copy"/></svg>Copy link</button><button class="btn sec" id="aCopy"><svg class="i"><use href="#i-copy"/></svg>Copy FEN</button><button class="btn sec" id="aCopyPgn"><svg class="i"><use href="#i-copy"/></svg>Copy PGN</button><button class="btn quiet" id="aReset">Reset</button></div>
+      <p class="small mute" style="margin-top:10px"><span class="hint-fine">Right-click and drag to draw arrows; right-click a square to circle it.</span><span class="hint-touch">Tap the pencil, then drag to draw arrows or tap a square to circle it.</span></p>
     </section>
   </aside>
 </section>
@@ -887,6 +938,8 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
   <div class="panel" style="grid-column:1/-1"><div class="ph"><h2>Activity</h2><span class="sp small mute" id="calNote"></span></div><section><div class="cal" id="cal"></div></section></div>
   <div class="panel"><div class="ph"><h2>Where your mistakes happen</h2></div><section id="phases"></section></div>
   <div class="panel"><div class="ph"><h2>Drill schedule</h2></div><section id="boxes"></section></div>
+  <div class="panel"><div class="ph"><h2>Where your mistakes land</h2><span class="sp small mute" id="heatNote"></span></div><section><div class="heat" id="heat"></div><p class="small mute" style="margin-top:8px">Squares you moved to when you made a mistake. Darker means more often.</p></section></div>
+  <div class="panel"><div class="ph"><h2>Your month</h2></div><section><p class="mute small" style="margin:0 0 12px">A report card of the last 30 days, ready to post.</p><div class="row" style="gap:8px"><button class="btn" id="monthShare" type="button"><svg class="i"><use href="#i-share"/></svg>Share my month</button><button class="btn sec" id="pgnExport" type="button">Download my games (PGN)</button></div></section></div>
   <div class="panel" style="grid-column:1/-1"><div class="ph"><h2>Awards</h2><span class="sp small mute" id="awNote"></span></div><section><div class="awards" id="awards"></div></section></div>
 </section>
     </main>
@@ -899,6 +952,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
   <div class="sheetdlg" role="dialog" aria-label="Settings">
     <div class="ph"><h2>Settings</h2><button class="btn quiet sp" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
     <section><h3>Board</h3><div class="swatches" id="swatches"></div></section>
+    <section id="plusRow" hidden><h3>NextMove Plus</h3><div class="row" style="justify-content:space-between;gap:12px"><span class="small mute" id="plusRowText"></span><button class="btn sec" id="plusRowBtn" type="button">See Plus</button></div></section>
     <section><h3>Background</h3><div class="bgs" id="bgSw"></div></section>
     <section><h3>Pieces</h3><div class="psets" id="psets"></div></section>
     <section><h3>Arrow colour</h3><div class="aswatches" id="arrowSw"></div></section>
@@ -907,6 +961,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
     <section><h3>Sound</h3><div class="seg" id="sndStyle"><button data-ss="wood">Wood</button><button data-ss="soft">Soft</button><button data-ss="classic">Classic</button></div>
       <label class="f" style="margin-top:12px">Volume <input type="range" id="sVol" min="0" max="100" step="5"></label><button class="btn quiet" id="sndTest" type="button" style="padding:0;margin-top:4px">Play a test move</button></section>
     <section class="row" style="gap:16px"><label class="chk"><input type="checkbox" id="sSound"> Move sounds</label><label class="chk"><input type="checkbox" id="sCoords"> Coordinates</label><label class="chk"><input type="checkbox" id="sAnim"> Animate moves</label></section>
+    <section class="row" style="gap:16px;flex-wrap:wrap"><label class="chk"><input type="checkbox" id="s_blunder"> Blunder check vs bots</label><label class="chk"><input type="checkbox" id="s_confirm"> Tap twice to confirm moves</label><label class="chk"><input type="checkbox" id="s_zen"> Zen mode (hide ratings, eval, coach)</label><label class="chk"><input type="checkbox" id="s_streamer"> Streamer mode (hide my name)</label></section>
     <section><label class="f">Your usernames, comma separated (used to spot your side in imported games)<input type="text" id="nameIn" placeholder="e.g. landon_s, landon"></label></section>
     <section><label class="f">Review depth<select id="depthIn"><option value="12">Fast</option><option value="14">Normal</option><option value="16">Deep (slower)</option></select></label></section>
     <section><button class="btn sec" id="resetBtn">Reset all progress</button><div class="fb no" id="resetConfirm" hidden style="margin-top:10px"><b>Erase all games, drills and ratings?</b><div class="row"><button class="btn" id="resetYes" style="background:var(--no)">Erase</button><button class="btn sec" id="resetNo">Cancel</button></div></div></section>
@@ -926,6 +981,7 @@ body[data-bg=tournament],body[data-bg=bishop],body[data-bg=marble],body[data-bg=
 <script src="train.js"></script>
 <script src="progress.js"></script>
 <script src="rewards.js"></script>
+<script src="plus.js"></script>
 <script src="home.js"></script>
 </body>
 </html>
