@@ -48,6 +48,7 @@ function loadReview(pgn, me) {
   return true;
 }
 A.loadReview = loadReview;
+A.reviewGid = id => { R.gid = id; };
 async function run() {
   const token = R.token = { cancel: false };
   const depth = +S().depth || 14; const n = R.fens.length;

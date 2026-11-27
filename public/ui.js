@@ -9,7 +9,8 @@ const DAY = 864e5, GOAL = 12;
 const A = { S, $$, uid, today, DAY, GOAL, views: {}, PUZ: [], EG: [], GAMB: [], COURSES: [], sample: null };
 
 /* ---------- settings ---------- */
-const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green', mark: 'red' };
+const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green', mark: 'red', bg: 'midnight' };
+const BGS = [['midnight', 'Midnight', 'radial-gradient(circle at 30% 0%,#1c2552,#0a0e1c 70%)'], ['pieces', 'Pieces', ''], ['grid', 'Grid horizon', 'linear-gradient(transparent 45%,rgba(241,207,134,.25)),conic-gradient(rgba(241,207,134,.18) 25%,transparent 0 50%,rgba(241,207,134,.18) 0 75%,transparent 0) 0 0/16px 16px,#0a0e1c'], ['aurora', 'Aurora', 'radial-gradient(circle at 25% 30%,rgba(111,211,160,.45),transparent 50%),radial-gradient(circle at 75% 30%,rgba(150,120,255,.45),transparent 50%),radial-gradient(circle at 55% 85%,rgba(241,207,134,.35),transparent 50%),#0a0e1c'], ['stars', 'Night sky', 'radial-gradient(1px 1px at 10px 12px,#fff,transparent),radial-gradient(1px 1px at 40px 30px,#fff,transparent),radial-gradient(1px 1px at 70px 18px,#fff,transparent),radial-gradient(circle at 70% 0%,#1a1440,#05070f 70%)'], ['walnut', 'Walnut', 'repeating-linear-gradient(97deg,#2a1a10 0 4px,#32200f 4px 6px),#1a110b'], ['felt', 'Felt', 'radial-gradient(circle at 50% 30%,#1f5a40,#0b2a1e 75%)'], ['pure', 'Pure black', '#05060b']];
 const ARROWS = [['green', 'Green', '#4fcf8f'], ['gold', 'Champagne gold', '#e9b850'], ['blue', 'Blue', '#5b9dff'], ['red', 'Red', '#ff5a5a'], ['orange', 'Orange', '#f2a33a']];
 const MARKS = [['red', 'Red', '#ff5a5a'], ['green', 'Green', '#4fcf8f'], ['blue', 'Blue', '#5b9dff'], ['gold', 'Champagne gold', '#e9b850'], ['orange', 'Orange', '#f2a33a']];
 K.markColor = () => (MARKS.find(a => a[0] === A.ui().mark) || MARKS[0])[2];
@@ -20,13 +21,23 @@ function applyUI() {
   const u = A.ui();
   document.documentElement.dataset.board = u.board;
   document.body.classList.toggle('nocoords', !u.coords);
+  document.body.dataset.bg = u.bg || 'midnight';
+  if (u.bg === 'pieces' && K.PIECESETS) $('#bgfx').style.setProperty('--piecebg', `url("${pieceTile(u.pieces)}")`);
   if (K.PIECESETS && K.PIECESETS[u.pieces]) K.setPieces(K.PIECESETS[u.pieces]);
   A.boards.forEach(b => { b.noAnim = !u.anim; b.render(); });
 }
 A.applyUI = applyUI;
+// a scattered tile of pieces from your chosen set, used by the "Pieces" background
+function pieceTile(set) {
+  const P = K.PIECESETS[set] || K.PIECESETS.cburnett; if (!P) return '';
+  const spots = [['wn', 20, 30, -12], ['wk', 170, 10, 8], ['wb', 90, 140, 15], ['wq', 220, 170, -6], ['wr', 10, 220, 4], ['wp', 150, 250, -10], ['bn', 250, 80, 10], ['bp', 60, 80, 0]];
+  const img = spots.map(([p, x, y, r]) => `<image href="${P[p]}" x="${x}" y="${y}" width="56" height="56" transform="rotate(${r} ${x + 28} ${y + 28})"/>`).join('');
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="300">${img}</svg>`);
+}
 const BOARDS = [['blue', '#e8e3d6', '#7a84ab'], ['green', '#ebecd0', '#739552'], ['walnut', '#f0d9b5', '#b58863'], ['graphite', '#d4d4cf', '#7b7e85'], ['night', '#9aa4b1', '#4f5b6b']];
 function renderSettings() {
   const u = A.ui();
+  $('#bgSw').innerHTML = BGS.map(([k, n, css]) => `<button class="bgo${(u.bg || 'midnight') === k ? ' on' : ''}" data-bg="${k}"><i style="background:${k === 'pieces' ? `url('${pieceTile(u.pieces)}') 0 0/90px 90px,#0a0e1c` : css}"></i>${n}</button>`).join('');
   $('#swatches').innerHTML = BOARDS.map(([n, a, b]) => `<button class="sw${u.board === n ? ' on' : ''}" data-b="${n}" style="--a:${a};--b:${b}" aria-label="${n} board"><i></i><i></i><i></i><i></i></button>`).join('');
   $('#psets').innerHTML = Object.keys(K.PIECESETS || {}).map(n => `<button class="pset${u.pieces === n ? ' on' : ''}" data-p="${n}" aria-label="${n} pieces">${['wn', 'wq', 'bk'].map(p => `<img alt="" src="${K.PIECESETS[n][p]}">`).join('')}</button>`).join('');
   $('#arrowSw').innerHTML = ARROWS.map(([k, n, c]) => `<button class="asw${u.arrow === k ? ' on' : ''}" data-a="${k}" style="--c:${c}"><i></i>${n}</button>`).join('');
@@ -43,6 +54,7 @@ $('#swatches').onclick = e => { const b = e.target.closest('[data-b]'); if (!b) 
 $('#psets').onclick = e => { const b = e.target.closest('[data-p]'); if (!b) return; A.ui().pieces = b.dataset.p; K.save(); applyUI(); renderSettings(); };
 $('#arrowSw').onclick = e => { const b = e.target.closest('[data-a]'); if (!b) return; A.ui().arrow = b.dataset.a; K.save(); renderSettings(); };
 $('#markSw').onclick = e => { const b = e.target.closest('[data-m]'); if (!b) return; A.ui().mark = b.dataset.m; K.save(); renderSettings(); };
+$('#bgSw').onclick = e => { const b = e.target.closest('[data-bg]'); if (!b) return; A.ui().bg = b.dataset.bg; K.save(); applyUI(); renderSettings(); };
 $('#notSeg').onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; A.ui().notation = b.dataset.n; K.save(); renderSettings(); A.refresh(); };
 $('#sSound').onchange = e => { A.ui().sound = e.target.checked; K.save(); };
 $('#sCoords').onchange = e => { A.ui().coords = e.target.checked; K.save(); applyUI(); };
@@ -188,8 +200,8 @@ A.coachCtx = (fen, u, pre, post, cls) => {
 };
 
 /* ---------- router ---------- */
-const VIEWS = ['play', 'review', 'analysis', 'train', 'progress'];
-A.cur = () => { const v = location.hash.slice(1); return VIEWS.includes(v) ? v : 'play'; };
+const VIEWS = ['home', 'play', 'review', 'analysis', 'train', 'progress'];
+A.cur = () => { const v = location.hash.slice(1); return VIEWS.includes(v) ? v : 'home'; };
 function route() {
   const v = A.cur();
   $$('main .view').forEach(s => { if (VIEWS.includes(s.id)) s.hidden = s.id !== v; });

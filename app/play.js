@@ -13,7 +13,7 @@ const BOTS = [
   { id: 'sofia', n: 'Sofia', r: 2100, bio: 'Expert — punishes every slip', elo: 2100, depth: 14, book: true },
   { id: 'sf', n: 'Stockfish', r: 3000, bio: 'Full strength. Good luck.', depth: 18, icon: 'i-cpu' }];
 const TCS = { none: null, '1+0': [60, 0], '3+2': [180, 2], '5+3': [300, 3], '10+0': [600, 0] };
-const P = { view: null, seenN: 0, mode: 'bot', bot: 3, color: 'w', tc: 'none', open: 'auto', g: null, me: 'w', over: false, thinking: false, clocks: null, showEval: false, evalLine: null, line: null, online: null };
+const P = { coach: null, coachLog: [], view: null, seenN: 0, mode: 'bot', bot: 3, color: 'w', tc: 'none', open: 'auto', g: null, me: 'w', over: false, thinking: false, clocks: null, showEval: false, evalLine: null, line: null, online: null };
 A.P = P;
 const pb = A.board($('#play .bd'), {
   movable: () => !P.g || P.over || P.thinking || P.view != null ? null : P.mode === 'local' ? 'both' : (P.mode === 'online' && !P.online?.started) ? null : P.me,
@@ -64,7 +64,7 @@ function pickLine(botColor) {
 }
 function startGame(opts = {}) {
   saveUnfinished();
-  P.g = new Chess(); P.gid = A.uid(); P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
+  P.g = new Chess(); P.gid = A.uid(); P.coach = null; P.coachLog = []; P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
   if (P.mode === 'local') P.me = 'w';
   else if (P.mode === 'online') P.me = opts.color;
   else P.me = opts.color || (P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color);
@@ -76,9 +76,13 @@ function startGame(opts = {}) {
   $('#setup').hidden = true; $('#ingame').hidden = false; $('#overBox').hidden = true;
   $('#hintBtn').hidden = P.mode !== 'bot'; $('#undoBtn').hidden = P.mode === 'online';
   render();
-  if (P.mode === 'bot' && P.g.turn() !== P.me) botMove();
+  $('#coachBtn').hidden = P.mode !== 'bot'; $('#coachBtn').classList.toggle('on', A.ui().coach !== false); drawCoach();
+  if (P.mode === 'bot' && P.g.turn() !== P.me) botMove(); else warmCoach();
 }
 // continue a trained line as a real game against a bot near your level
+A.BOTS = BOTS;
+A.quickBot = (i, color) => { leaveOnline(); P.mode = 'bot'; P.bot = i; A.go('play'); startGame(color ? { color } : {}); };
+A.playOnline = () => { P.mode = 'online'; newGame(); A.go('play'); renderSetup(); };
 A.botForMe = () => { const r = S().puz.r || 1000; let bi = 0; BOTS.forEach((b, i) => { if (Math.abs(b.r - r) < Math.abs(BOTS[bi].r - r)) bi = i; }); return { i: bi, name: BOTS[bi].n, r: BOTS[bi].r }; };
 A.playFrom = (moves, color, title) => {
   leaveOnline(); P.mode = 'bot'; P.bot = A.botForMe().i; A.go('play');
@@ -96,7 +100,8 @@ function render(anim) {
   let fen = g.fen();
   if (!live) { const c = new Chess(); for (let i = 0; i < v; i++) c.move(h[i].san); fen = c.fen(); }
   const last = h[v - 1];
-  pb.set(fen, { last: last ? last.from + last.to : null, arrows: live && P.hint ? [P.hint] : [], anim });
+  const cb = P.coach && P.coach.ply === v && K.CLS[P.coach.cls] ? { sq: P.coach.sq, c: K.CLS[P.coach.cls].c, i: K.CLS[P.coach.cls].i } : null;
+  pb.set(fen, { last: last ? last.from + last.to : null, arrows: live && P.hint ? [P.hint] : [], anim, badge: cb });
   pb.host.classList.toggle('viewing', !live);
   drawPlayers(fen);
   const ml = []; for (let i = 0; i < n; i += 2) ml.push(`<li><span>${i / 2 + 1}</span><b class="mv${v === i + 1 ? ' cur' : ''}" data-ply="${i + 1}">${A.fig(h[i].san, 'w')}</b><b class="mv${v === i + 2 ? ' cur' : ''}" data-ply="${i + 2}">${h[i + 1] ? A.fig(h[i + 1].san, 'b') : ''}</b></li>`);
@@ -151,8 +156,9 @@ function afterMove(color, m) {
 }
 function userMove(f, t, pr) {
   if (!P.g || P.over) return false;
-  const color = P.g.turn();
+  const color = P.g.turn(); const fenBefore = P.g.fen();
   const m = P.g.move({ from: f, to: t, promotion: pr || 'q' }); if (!m) return false;
+  coachMove(fenBefore, K.uciOf(m), color, P.g.history().length);
   const ended = afterMove(color, m);
   if (P.mode === 'local' && !ended) pb.orient = P.g.turn();
   render(!pb.lastWasDrag && P.mode !== 'local');
@@ -184,7 +190,42 @@ async function botMove() {
   const m = u && u !== '(none)' ? K.mv(P.g, u) : null;
   P.thinking = false;
   if (!m) { render(); return; }
-  afterMove(color, m); render(true);
+  afterMove(color, m); render(true); warmCoach();
+}
+/* ---------- coach: a verdict on each of your moves against a bot ---------- */
+const coachOn = () => A.ui().coach !== false && P.mode === 'bot';
+const GOODC = ['brilliant', 'great', 'best', 'excellent', 'good', 'book', 'forced'];
+function warmCoach() { if (coachOn() && P.g && !P.over && P.g.turn() === P.me) K.analyse(P.g.fen(), 11, 2); }
+async function coachMove(fen, u, color, ply) {
+  if (!coachOn()) return;
+  const gid = P.gid; P.coach = { ply, think: true }; drawCoach();
+  const pre = await K.analyse(fen, 11, 2); const c = new Chess(fen); K.mv(c, u); const post = await K.analyse(c.fen(), 11, 1);
+  if (P.gid !== gid) return;
+  const e = K.BOOK.get(K.key4(fen)); const inBook = !!(e && e.moves.has(u));
+  const cl = K.classify({ fen, u, pre, post, color, inBook });
+  const ex = K.explain({ fen, u, cls: cl.cls, pre, post, color });
+  const lines = ex.text.filter(t => !/^The line:|^Engine line|^Line:/.test(t));
+  const good = GOODC.includes(cl.cls);
+  const head = { brilliant: 'Brilliant!', great: 'Great move', best: 'Best move', excellent: 'Excellent', good: 'Good move', book: 'Book move — that’s theory', forced: 'Only move', inaccuracy: 'Inaccuracy', mistake: 'Mistake', miss: 'Missed chance', blunder: 'Blunder' }[cl.cls] || 'Move played';
+  let text = good ? (lines[0] || '') : lines.filter(t => !/^Better was/.test(t)).slice(0, 2).join(' ');
+  if (!good && pre.lines[0] && pre.lines[0].move) text += ` Better was ${K.moveName(fen, pre.lines[0].move)}.${P.mode === 'bot' ? ' Use Takeback to try again.' : ''}`;
+  P.coach = { ply, cls: cl.cls, sq: u.slice(2, 4), head, text, good };
+  P.coachLog[ply] = cl.cls; drawCoach(); render();
+}
+function drawCoach() {
+  const el = $('#coachBox'); const c = P.coach;
+  if (!coachOn() || !c || !P.g) { el.hidden = true; return; }
+  el.hidden = false;
+  if (c.think) { el.className = 'coach think'; el.innerHTML = `<span class="ic" style="background:var(--glass2,#2a3254)">…</span><span><b>Coach</b><p>Looking at your move…</p></span>`; return; }
+  el.className = 'coach ' + (c.good ? 'good' : ['mistake', 'blunder', 'miss'].includes(c.cls) ? 'bad' : '');
+  el.innerHTML = `${A.clsChip(c.cls)}<span><b>${esc(c.head)}</b>${c.text ? `<p>${esc(c.text)}</p>` : ''}</span>`;
+}
+$('#coachBtn').onclick = () => { const u = A.ui(); u.coach = u.coach === false; K.save(); $('#coachBtn').classList.toggle('on', u.coach !== false); if (u.coach !== false) warmCoach(); drawCoach(); render(); };
+function coachSummary() {
+  const log = P.coachLog.filter(Boolean); if (!log.length) return '';
+  const n = k => log.filter(x => k.includes(x)).length;
+  const good = n(GOODC), inacc = n(['inaccuracy']), bad = n(['mistake', 'miss']), bl = n(['blunder']);
+  return `Coach: ${good} good move${good === 1 ? '' : 's'}${inacc ? `, ${inacc} inaccurac${inacc === 1 ? 'y' : 'ies'}` : ''}${bad ? `, ${bad} mistake${bad === 1 ? '' : 's'}` : ''}${bl ? `, ${bl} blunder${bl === 1 ? '' : 's'}` : ''}. The full review shows where it turned and what to play instead.`;
 }
 function checkEnd() {
   const g = P.g;
@@ -203,6 +244,7 @@ function endGame(res, text, remote) {
   K.save(); A.sound('end');
   if (P.mode === 'online' && !remote) pushOnline();
   $('#overBox').hidden = false; $('#overText').textContent = text;
+  const cs = coachSummary(); $('#overCoach').hidden = !cs; $('#overCoach').textContent = cs;
   render(); A.refresh();
 }
 // Every game against a bot or a friend is kept as it's played, so its mistakes can be reviewed
@@ -228,7 +270,7 @@ $('#undoBtn').onclick = () => {
   if (P.over) { P.over = false; $('#overBox').hidden = true; S().games.pop(); }
   P.g.undo(); if (P.mode === 'bot' && P.g.turn() !== P.me && P.g.history().length) P.g.undo();
   if (P.mode === 'local') pb.orient = P.g.turn();
-  P.hint = null; render();
+  P.hint = null; P.coach = null; drawCoach(); render();
   // taking back the bot's very first move (you're Black) hands the move back to the bot
   if (P.mode === 'bot' && !P.over && P.g.turn() !== P.me) botMove();
 };
@@ -260,7 +302,7 @@ $('#rematchBtn').onclick = () => {
   if (P.mode === 'online') { if (P.online && P.online.role === 'host') { P.online.round = (P.online.round || 0) + 1; P.online.hostColor = P.online.hostColor === 'w' ? 'b' : 'w'; startGame({ color: P.online.hostColor, tc: P.online.tc }); P.online.started = true; pushOnline(); } else A.toast('Ask the host to start a rematch'); return; }
   if (P.mode === 'bot' && P.color !== 'r') P.color = P.me === 'w' ? 'b' : 'w'; startGame();
 };
-$('#reviewThis').onclick = () => { const g = S().games[S().games.length - 1]; if (g) { A.go('review'); A.loadReview(g.pgn, g.me); } };
+$('#reviewThis').onclick = () => { const g = S().games.find(x => x.id === P.gid) || S().games[S().games.length - 1]; if (g) { A.go('review'); if (A.loadReview(g.pgn, g.me)) A.reviewGid && A.reviewGid(g.id); } };
 
 /* ---------- online play with a friend (room capability) ---------- */
 let room = null, gr = null;

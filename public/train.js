@@ -450,5 +450,6 @@ function visGo() {
   stopTimer(); timer = setInterval(() => { const left = Math.max(0, V.end - Date.now()); $('#tMeta').textContent = `${Math.ceil(left / 1000)}s`; if (!left) { stopTimer(); V.on = false; const s = S(); s.best = s.best || {}; const rec = V.score > (s.best.vision || 0); if (rec) s.best.vision = V.score; A.tick(); K.save(); A.sound('end'); $('#tFb').innerHTML = `<div class="score"><b>${V.score}</b><span>squares${rec ? ' · new best!' : ` · best ${s.best.vision}`}</span></div><div class="row" style="margin-top:12px"><button class="btn" id="visAgain">Go again</button></div>`; $('#visAgain').onclick = visGo; tb.set(tb.fen, {}); } }, 200);
 }
 
+A.startTrain = m => { A.go('train'); start(m); };
 A.views.train = { enter() { renderHub(); }, leave() { stopTimer(); }, refresh() { renderHub(); } };
 }
