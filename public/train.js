@@ -25,7 +25,7 @@ function renderHub() {
   $('#hStreak').textContent = s.best.streak ? `best ${s.best.streak}` : '';
   $('#hRush').textContent = s.best.rush ? `best ${s.best.rush}` : '';
   $('#hGambit').textContent = A.GAMB.length ? `${A.GAMB.filter(g => s.op[g.name]).length}/${A.GAMB.length}` : '';
-  $('#hOpen').textContent = `${Object.keys(s.op).filter(n => !A.GAMB.some(g => g.name === n)).length} drilled`;
+  $('#hOpen').textContent = `${A.COURSES.filter(c => s.op[c.name]).length}/${A.COURSES.length || 58}`;
   $('#hEnd').textContent = A.EG.length ? `${A.EG.filter(e => s.eg[e.title]).length}/${A.EG.length}` : '';
   $('#hVision').textContent = s.best.vision ? `best ${s.best.vision}` : '';
   void mastered;
@@ -77,8 +77,8 @@ function startDrills(all) {
   if (!q.length && all) q = S().drills.slice().sort(() => Math.random() - .5).slice(0, 12);
   open('drills', 'Mistake drills');
   if (!q.length) {
-    prompt(S().drills.length ? 'All caught up' : 'No drills yet', S().drills.length ? 'Nothing is due right now. Practise anyway, or come back tomorrow.' : 'Review one of your games with your side set, and every mistake you made lands here automatically.');
-    show(K.START); $('#tFb').innerHTML = S().drills.length ? '<button class="btn" id="drillAny">Practise anyway</button>' : '<a class="btn" href="#review">Review a game</a>';
+    prompt(S().drills.length ? 'All caught up' : 'No drills yet', S().drills.length ? 'Nothing is due right now. Practise anyway, or come back tomorrow.' : 'Play a game against a bot (finished or not) or review one of your games, and every mistake you make lands here automatically.');
+    show(K.START); $('#tFb').innerHTML = S().drills.length ? '<button class="btn" id="drillAny">Practise anyway</button>' : '<a class="btn" href="#play">Play a game</a>';
     const b = $('#drillAny'); if (b) b.onclick = () => startDrills(true);
     return;
   }
@@ -104,7 +104,8 @@ function drill() {
       grade(T.first); A.sound('good');
       const x = new Chess(d.fen); K.mv(x, d.played); const orig = await K.analyse(x.fen(), 13, 1);
       const why = K.explain({ fen: d.fen, u: d.played, cls: d.cls, pre: j.pre, post: orig, color: d.fen.split(' ')[1] });
-      fb('ok', `${nm(d.fen, u)} — that works${T.first ? '' : ' (with help)'}`, [j.isBest ? 'That’s the engine’s top move.' : `The engine’s top choice was: ${K.moveName(d.fen, j.best.move)}. Yours is just as good.`, `What went wrong in the game: ${why.text.filter(keep).join(' ')}`], A.sample ? `<div class="row"><button class="btn quiet coach" id="coachT"><svg class="i"><use href="#i-chat"/></svg>Ask coach</button></div><p class="coachbox" id="coachTbox" hidden></p>` : '', why.shows.filter(x => x.label === 'Show what happens').map(x => ({ ...x, label: 'Show what went wrong in the game' })), () => show(c.fen()));
+      const wi = await whatIf(d, u); if (T.d !== d) return;
+      fb('ok', `${nm(d.fen, u)} — that works${T.first ? '' : ' (with help)'}`, [j.isBest ? 'That’s the engine’s top move.' : `The engine’s top choice was: ${K.moveName(d.fen, j.best.move)}. Yours is just as good.`, `What went wrong in the game: ${why.text.filter(keep).join(' ')}`, ...wi.text], A.sample ? `<div class="row"><button class="btn quiet coach" id="coachT"><svg class="i"><use href="#i-chat"/></svg>Ask coach</button></div><p class="coachbox" id="coachTbox" hidden></p>` : '', wi.shows, () => show(c.fen()));
       const cb = $('#coachT'); if (cb) cb.onclick = () => A.coach(cb, $('#coachTbox'), A.coachCtx(d.fen, d.played, j.pre, orig, d.cls));
       tools({ next: true }); T.next = () => { T.qi++; drill(); };
     } else {
@@ -114,6 +115,26 @@ function drill() {
       setTimeout(() => { if (T.d === d && !A.playing) { show(d.fen); T.lock = false; } }, 900);
     }
   };
+}
+// "How would the game have gone?" — the likely continuation after your game move vs after a better one
+async function whatIf(d, goodU) {
+  const me = d.fen.split(' ')[1];
+  const gx = new Chess(d.fen); K.mv(gx, d.played); const gl = (await K.analyse(gx.fen(), 14, 1)).lines[0];
+  const bx = new Chess(d.fen); K.mv(bx, goodU); const bl = (await K.analyse(bx.fen(), 14, 1)).lines[0];
+  const seq = (fen, pv) => {
+    if (!K.plainMode()) return K.pvSan(fen, pv, 6);
+    const c = new Chess(fen), out = [];
+    for (const u of (pv || []).slice(0, 5)) { const before = c.fen(); const who = c.turn() === me ? 'your' : 'their'; if (!K.mv(c, u)) break; out.push(K.act(before, u, who)); }
+    return out.length ? out.join(', then ') : '';
+  };
+  const sw = l => K.words(l, me);
+  const dv = Math.round((K.cpv(bl) - K.cpv(gl)) * (me === 'w' ? 1 : -1) / 10) / 10;
+  const text = [];
+  const gs = seq(gx.fen(), gl && gl.pv), bs = seq(bx.fen(), bl && bl.pv);
+  text.push(`How the game would have gone: after ${K.moveName(d.fen, d.played)}, best play continues ${gs || 'quietly'}, and you end up ${sw(gl)}.`);
+  text.push(`With ${K.moveName(d.fen, goodU)} instead: ${bs ? bs + ', and' : ''} you'd be ${sw(bl)}${Math.abs(dv) >= 0.8 && Math.abs(K.cpv(bl)) < 9000 && Math.abs(K.cpv(gl)) < 9000 ? ` — that one move was worth about ${Math.abs(dv).toFixed(1)} pawns` : ''}.`);
+  const shows = [{ label: 'Play the game line', fen: d.fen, pv: [d.played, ...((gl && gl.pv) || []).slice(0, 5)] }, { label: 'Play the better line', fen: d.fen, pv: [goodU, ...((bl && bl.pv) || []).slice(0, 5)] }];
+  return { text, shows };
 }
 function grade(ok) {
   const d = S().drills.find(x => x.id === T.d.id); if (!d) return;
@@ -126,8 +147,8 @@ async function drillReveal() {
   const x = new Chess(d.fen); K.mv(x, d.played); const orig = await K.analyse(x.fen(), 13, 1);
   const why = K.explain({ fen: d.fen, u: d.played, cls: d.cls, pre, post: orig, color: d.fen.split(' ')[1] });
   show(d.fen, { arrows: [{ from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#5aa54a' }] });
-  const db = K.describeBest(d.fen, b);
-  fb('', `Best: ${nm(d.fen, b.move)}`, [db.text, `Your game move: ${why.text.filter(keep).join(' ')}`, 'This one comes back in 10 minutes.'], '', db.shows, () => show(d.fen, { arrows: [{ from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#5aa54a' }] }));
+  const db = K.describeBest(d.fen, b); const wi = await whatIf(d, b.move); if (T.d !== d) return;
+  fb('', `Best: ${nm(d.fen, b.move)}`, [db.text, `Your game move: ${why.text.filter(keep).join(' ')}`, ...wi.text, 'This one comes back in 10 minutes.'], '', wi.shows, () => show(d.fen, { arrows: [{ from: b.move.slice(0, 2), to: b.move.slice(2, 4), c: '#5aa54a' }] }));
   tools({ next: true }); T.next = () => { T.qi++; drill(); };
 }
 
@@ -326,17 +347,24 @@ function listPreview(find) {
     tb.orient = l.side || 'w'; show(c.fen(), { last: l.moves[l.moves.length - 1] });
   };
 }
+// Opening courses: real main lines, 12–20 moves deep, with a note on the moves that matter.
+// Pick how deep to go: Quick (first 6 moves), Standard (10 moves) or Full (the whole line).
+const DEPTHS = { quick: ['Quick', 12], std: ['Standard', 20], full: ['Full line', 99] };
 function startOpenings() {
-  open('open', 'Opening lines');
-  prompt('Pick a line and a side', 'The board plays the other side. Other theory moves are accepted with a note.');
-  const lines = K.BOOKLINES.filter(l => l.moves.length >= 4);
-  const grp = { '1.e4': [], '1.d4': [], 'Other first moves': [] };
-  lines.forEach(l => (l.moves[0] === 'e2e4' ? grp['1.e4'] : l.moves[0] === 'd2d4' ? grp['1.d4'] : grp['Other first moves']).push(l));
-  const s = S(); let h = '<div class="picker">';
-  for (const [g, list] of Object.entries(grp)) h += `<h4>${g}</h4>${list.map(l => `<div class="prow" data-pl="${esc(l.name)}"><span><b>${esc(l.name)}${s.op[l.name] ? `<span class="done">${s.op[l.name].reps}×</span>` : ''}</b><small>${esc(K.pvSan(K.START, l.moves, 8))}</small></span><span class="row"><button class="btn sec" data-ol="${esc(l.name)}" data-c="w">White</button><button class="btn sec" data-ol="${esc(l.name)}" data-c="b">Black</button></span></div>`).join('')}`;
+  open('open', 'Opening courses');
+  const s = S(); s.opDepth = s.opDepth || 'std';
+  prompt('Pick a line and a side', 'The board plays the other side and explains the key moves as you go. Other good theory moves are accepted with a note.');
+  const grp = {}; A.COURSES.forEach(l => (grp[l.group] = grp[l.group] || []).push(l));
+  let h = `<div class="seg" id="opDepth" style="margin-bottom:14px">${Object.entries(DEPTHS).map(([k, [n]]) => `<button data-d="${k}"${s.opDepth === k ? ' class="on"' : ''}>${n}</button>`).join('')}</div><div class="picker">`;
+  for (const [g, list] of Object.entries(grp)) h += `<h4>${esc(g)}</h4>${list.map(l => { const n = Math.min(l.moves.length, DEPTHS[s.opDepth][1]); const st = s.op[l.name]; return `<div class="prow" data-pl="${esc(l.name)}"><span><b>${esc(l.name)}${st ? `<span class="done">✓ ${st.reps}×</span>` : ''}</b><small>${Math.ceil(n / 2)} moves · ${esc(K.pvSan(K.START, l.moves, 8))}</small></span><span class="row"><button class="btn sec" data-ol="${esc(l.name)}" data-c="w">White</button><button class="btn sec" data-ol="${esc(l.name)}" data-c="b">Black</button></span></div>`; }).join('')}`;
   $('#tList').hidden = false; $('#tList').innerHTML = h + '</div>';
-  listPreview(n => lines.find(l => l.name === n));
-  $('#tList').onclick = e => { const b = e.target.closest('[data-ol]'); if (b) { T.inner = true; T.back = startOpenings; opPlay(lines.find(l => l.name === b.dataset.ol), b.dataset.c); } };
+  listPreview(n => A.COURSES.find(l => l.name === n));
+  $('#tList').onclick = e => {
+    const d = e.target.closest('[data-d]'); if (d) { s.opDepth = d.dataset.d; K.save(); const sc = $('#tList .picker').scrollTop; startOpenings(); $('#tList .picker').scrollTop = sc; return; }
+    const b = e.target.closest('[data-ol]'); if (!b) return;
+    const l = A.COURSES.find(x => x.name === b.dataset.ol); const n = Math.min(l.moves.length, DEPTHS[s.opDepth][1]);
+    T.inner = true; T.back = startOpenings; opPlay({ ...l, moves: l.moves.slice(0, n), depth: DEPTHS[s.opDepth][0] }, b.dataset.c);
+  };
 }
 function startGambits() {
   open('gambit', 'Gambit lab');
@@ -355,13 +383,21 @@ function opPlay(line, color) {
   tb.orient = color; show(T.g.fen()); T.movable = color;
   const mine = line.moves.filter((_, i) => (i % 2 === 0) === (color === 'w')).length;
   prompt(esc(line.name), `You play ${color === 'w' ? 'White' : 'Black'} · ${mine} moves to find.`);
-  const ideaBox = () => line.idea ? `<p class="idea">${esc(line.idea)}</p>` : '';
+  const noteText = () => {
+    if (!line.notes) return line.idea || '';
+    let k = -1; for (const p in line.notes) if (+p < T.idx && +p < line.moves.length && +p > k) k = +p;
+    if (k < 0) return `${line.depth ? line.depth + ': ' : ''}play the main line. Notes appear on the moves that matter.`;
+    const c = new Chess(); for (let i = 0; i < k; i++) K.mv(c, line.moves[i]);
+    const who = k % 2 === 0 ? 'White' : 'Black'; const mine = (k % 2 === 0) === (color === 'w');
+    return `${mine ? 'Your move' : who}, ${K.moveName(c.fen(), line.moves[k])}: ${line.notes[k]}`;
+  };
+  const ideaBox = () => { const t = noteText(); return t ? `<p class="idea">${esc(t)}</p>` : ''; };
   $('#tFb').innerHTML = ideaBox();
   tools({ hint: true, restart: true });
   T.restart = () => opPlay(line, color);
   T.hint = () => { T.clean = false; const u = line.moves[T.idx]; if (u) show(T.g.fen(), { arrows: [{ from: u.slice(0, 2), to: u.slice(2, 4), c: '#e6a83a' }] }); };
   const auto = async () => {
-    while (T.idx < line.moves.length && T.g.turn() !== color) { await K.sleep(450); if (T.line !== line) return; const u = line.moves[T.idx++]; const m = K.mv(T.g, u); show(T.g.fen(), { last: u, anim: true }); A.moveSound(m, T.g); }
+    while (T.idx < line.moves.length && T.g.turn() !== color) { await K.sleep(450); if (T.line !== line) return; const u = line.moves[T.idx++]; const m = K.mv(T.g, u); show(T.g.fen(), { last: u, anim: true }); A.moveSound(m, T.g); if (!$('#tFb .fb')) $('#tFb').innerHTML = ideaBox(); }
     if (T.idx >= line.moves.length) opDone(); else $('#tMeta').textContent = `${Math.ceil(T.idx / 2)} / ${Math.ceil(line.moves.length / 2)}`;
   };
   T.onMove = async (u) => {
@@ -381,7 +417,11 @@ function opPlay(line, color) {
 function opDone() {
   const s = S(); const o = s.op[T.line.name] = s.op[T.line.name] || { reps: 0, clean: 0 };
   o.reps++; if (T.clean) o.clean++; o.last = Date.now(); A.tick(); K.save(); A.sound('good');
-  fb('ok', `${T.line.kind === 'trap' ? 'Trap sprung' : 'Line complete'}${T.clean ? ' — no mistakes' : ''}`, [T.line.note || '', `Drilled ${o.reps}× (${o.clean} clean).`]);
+  const bot = A.botForMe();
+  fb('ok', `${T.line.kind === 'trap' ? 'Trap sprung' : 'Line complete'}${T.clean ? ' — no mistakes' : ''}`, [T.line.note || '', `Drilled ${o.reps}× (${o.clean} clean). Now play the position out as a real game, or drill it again.`],
+    `<div class="row" style="margin-top:8px">${T.g.game_over() ? '' : `<button class="btn" id="playOut">Play it out vs ${esc(bot.name)} (${bot.r})</button>`}<button class="btn sec" id="drillAgain">Drill again</button></div>`);
+  if ($('#playOut')) $('#playOut').onclick = () => { const l = T.line; A.playFrom(l.moves.slice(0, T.idx), T.color, l.name); };
+  $('#drillAgain').onclick = () => T.restart && T.restart();
   T.movable = null; tools({ restart: true });
 }
 

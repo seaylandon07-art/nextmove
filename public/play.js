@@ -21,6 +21,8 @@ const pb = A.board($('#play .bd'), {
   onMove: (f, t, pr) => userMove(f, t, pr)
 });
 function botObj() { return BOTS[P.bot]; }
+// touching the board while looking at an earlier move jumps back to the live position, like the big sites
+pb.host.addEventListener('pointerdown', () => { if (P.g && P.view != null && !pb.drawMode) { P.view = null; render(); } }, true);
 function renderSetup() {
   $('#bots').innerHTML = BOTS.map((b, i) => `<button class="bot${i === P.bot ? ' on' : ''}" data-i="${i}"><span class="av" data-av="${esc(b.n)}" data-icon="${b.icon || ''}"></span><span><b>${esc(b.n)}</b><small>${esc(b.bio)}</small></span><em>${b.r}</em></button>`).join('');
   $$('#bots .av').forEach(el => A.avatar(el, el.dataset.av, el.dataset.icon));
@@ -62,19 +64,27 @@ function pickLine(botColor) {
 }
 function startGame(opts = {}) {
   saveUnfinished();
-  P.g = new Chess(); P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
+  P.g = new Chess(); P.gid = A.uid(); P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
   if (P.mode === 'local') P.me = 'w';
   else if (P.mode === 'online') P.me = opts.color;
-  else P.me = P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color;
+  else P.me = opts.color || (P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color);
   const tc = TCS[opts.tc || P.tc]; P.clocks = tc ? { w: tc[0] * 1000, b: tc[0] * 1000, inc: tc[1] * 1000, t: null } : null;
-  P.line = P.mode === 'bot' ? pickLine(P.me === 'w' ? 'b' : 'w') : null;
+  P.line = P.mode === 'bot' && !opts.pre ? pickLine(P.me === 'w' ? 'b' : 'w') : null;
+  if (opts.pre) for (const u of opts.pre) K.mv(P.g, u);
   pb.flip(P.me);
   const n = names(); P.g.header('Event', P.mode === 'online' ? 'NextMove online game' : 'NextMove game', 'Date', A.today().replace(/-/g, '.'), 'White', n.w, 'Black', n.b);
   $('#setup').hidden = true; $('#ingame').hidden = false; $('#overBox').hidden = true;
   $('#hintBtn').hidden = P.mode !== 'bot'; $('#undoBtn').hidden = P.mode === 'online';
   render();
-  if (P.mode === 'bot' && P.me === 'b') botMove();
+  if (P.mode === 'bot' && P.g.turn() !== P.me) botMove();
 }
+// continue a trained line as a real game against a bot near your level
+A.botForMe = () => { const r = S().puz.r || 1000; let bi = 0; BOTS.forEach((b, i) => { if (Math.abs(b.r - r) < Math.abs(BOTS[bi].r - r)) bi = i; }); return { i: bi, name: BOTS[bi].n, r: BOTS[bi].r }; };
+A.playFrom = (moves, color, title) => {
+  leaveOnline(); P.mode = 'bot'; P.bot = A.botForMe().i; A.go('play');
+  startGame({ pre: moves, color, tc: 'none' });
+  if (title) A.toast(`${title}: your move against ${BOTS[P.bot].n}`);
+};
 $('#startGame').onclick = () => startGame();
 function render(anim) {
   const g = P.g; if (!g) { P.view = null; pb.host.classList.remove('viewing'); pb.set(K.START); drawPlayers(); $('#pnav') && $('#pnav').classList.remove('viewing'); return; }
@@ -133,7 +143,7 @@ setInterval(() => {
 }, 100);
 function afterMove(color, m) {
   if (P.clocks) { P.clocks[color] += P.clocks.inc; P.clocks.t = performance.now(); }
-  P.hint = null; A.moveSound(m, P.g);
+  P.hint = null; A.moveSound(m, P.g); persistLive();
   if (P.mode === 'online') pushOnline();
   if (checkEnd()) return true;
   if (P.showEval) K.analyse(P.g.fen(), 12).then(r => { P.evalLine = r.lines[0]; A.setEvalBar($('#play .evalbar'), P.evalLine, pb.orient); });
@@ -189,15 +199,25 @@ function endGame(res, text, remote) {
   if (P.over) return;
   P.over = true; P.result = text; P.g.header('Result', res);
   const n = names();
-  S().games.push({ id: A.uid(), pgn: P.g.pgn(), date: A.today(), white: n.w, black: n.b, result: res, src: P.mode, me: P.mode === 'local' ? null : P.me });
+  upsertGame(res); A.queueReview(P.gid);
   K.save(); A.sound('end');
   if (P.mode === 'online' && !remote) pushOnline();
   $('#overBox').hidden = false; $('#overText').textContent = text;
   render(); A.refresh();
 }
-function saveUnfinished() {
-  if (P.g && !P.over && P.g.history().length >= 16) { P.g.header('Result', '*'); const n = names(); S().games.push({ id: A.uid(), pgn: P.g.pgn(), date: A.today(), white: n.w, black: n.b, result: '*', src: P.mode, me: P.mode === 'local' ? null : P.me }); K.save(); }
+// Every game against a bot or a friend is kept as it's played, so its mistakes can be reviewed
+// even if it's never finished (new game, closed tab, or you wander off to train).
+function upsertGame(res) {
+  if (!P.g || !P.gid) return; const s = S(); const n = names();
+  P.g.header('Result', res || '*');
+  const rec = { id: P.gid, pgn: P.g.pgn(), date: A.today(), white: n.w, black: n.b, result: res || '*', src: P.mode, me: P.mode === 'local' ? null : P.me, rev: 0 };
+  const i = s.games.findIndex(g => g.id === P.gid); if (i >= 0) s.games[i] = rec; else s.games.push(rec);
 }
+function persistLive() { if (P.g && !P.over && P.mode !== 'local' && P.g.history().length >= 10) { upsertGame(null); K.save(); } }
+function saveUnfinished() {
+  if (P.g && !P.over && P.g.history().length >= 10) { upsertGame(null); if (P.mode !== 'local') A.queueReview(P.gid); K.save(); }
+}
+A.playLive = () => !!(P.g && !P.over);
 $('#hintBtn').onclick = async () => {
   if (!P.g || P.over || P.thinking) return;
   const r = await K.analyse(P.g.fen(), 14); const b = r.lines[0]; if (!b || !b.move) return;
@@ -206,9 +226,11 @@ $('#hintBtn').onclick = async () => {
 $('#undoBtn').onclick = () => {
   if (!P.g || P.thinking || P.mode === 'online') return;
   if (P.over) { P.over = false; $('#overBox').hidden = true; S().games.pop(); }
-  P.g.undo(); if (P.mode === 'bot' && P.g.turn() !== P.me) P.g.undo();
+  P.g.undo(); if (P.mode === 'bot' && P.g.turn() !== P.me && P.g.history().length) P.g.undo();
   if (P.mode === 'local') pb.orient = P.g.turn();
-  render();
+  P.hint = null; render();
+  // taking back the bot's very first move (you're Black) hands the move back to the bot
+  if (P.mode === 'bot' && !P.over && P.g.turn() !== P.me) botMove();
 };
 $('#flipBtn').onclick = () => { pb.flip(); render(); };
 // step through the game while it's being played; making a move needs the live position
@@ -306,6 +328,6 @@ $('#joinBtn').onclick = async () => {
   A.toast('Joined — waiting for the host');
 };
 
-A.views.play = { enter() { renderSetup(); render(); }, refresh() { renderSetup(); drawPlayers(); } };
+A.views.play = { leave() { if (P.g && !P.over && P.mode !== 'local' && P.g.history().length >= 10) { persistLive(); A.queueReview(P.gid); } }, enter() { renderSetup(); render(); }, refresh() { renderSetup(); drawPlayers(); } };
 A.openPlay = () => A.go('play');
 }

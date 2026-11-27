@@ -6,7 +6,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const DAY = 864e5, GOAL = 12;
-const A = { S, $$, uid, today, DAY, GOAL, views: {}, PUZ: [], EG: [], GAMB: [], sample: null };
+const A = { S, $$, uid, today, DAY, GOAL, views: {}, PUZ: [], EG: [], GAMB: [], COURSES: [], sample: null };
 
 /* ---------- settings ---------- */
 const UI_DEF = { board: 'blue', pieces: 'cburnett', sound: true, coords: true, anim: true, notation: 'plain', arrow: 'green', mark: 'red' };
@@ -220,7 +220,8 @@ window.addEventListener('load', async () => {
   K.eng.readyP.then(() => $$('.engState').forEach(e => { e.textContent = 'Stockfish 17.1'; e.className = 'eng ok engState'; })).catch(() => $$('.engState').forEach(e => { e.textContent = 'Engine failed'; e.className = 'eng bad engState'; }));
   await K.loadBook();
   const get = async f => { try { return await (await fetch(f)).json(); } catch (e) { return []; } };
-  const [puz, eg, gamb] = await Promise.all([get('puzzles.json'), get('endgames.json'), get('gambits.json')]);
+  const [puz, eg, gamb, crs] = await Promise.all([get('puzzles.json'), get('endgames.json'), get('gambits.json'), get('courses.json')]);
+  A.COURSES = crs || []; A.COURSES.forEach(c => K.addLine(c.name, c.moves, false)); K.fillNames(A.COURSES);
   A.PUZ = puz.map((p, i) => ({ id: p.id || 'p' + i, ...p })); A.EG = eg; A.GAMB = gamb;
   A.GAMB.filter(g => g.kind === 'gambit').forEach(g => K.addLine(g.name, g.moves, false)); K.fillNames(A.GAMB.filter(g => g.kind === 'gambit'));
   A.dataReady = true; A.refresh(); route();

@@ -2,6 +2,7 @@
 {
 const { esc, $, CLS, BAD } = K; const { S, $$ } = A;
 const R = { moves: [], fens: [], an: [], cls: [], cur: 0, me: null, token: null, ex: null, retry: false, done: false, headers: {}, expl: {} };
+const RS = R;
 const rb = A.board($('#review .bd'), {
   movable: () => R.fens.length ? 'both' : null,
   legal: A.legalFor(() => R.ex ? R.ex.fen : R.fens[R.cur]),
@@ -9,9 +10,9 @@ const rb = A.board($('#review .bd'), {
 });
 function renderRecent() {
   const gs = S().games.slice().reverse().slice(0, 12);
-  $('#recent').innerHTML = gs.length ? gs.map(g => `<button class="moment" data-id="${esc(g.id)}"><span>${esc(g.date.slice(5))}</span><span></span><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.white)} – ${esc(g.black)}</b><span>${esc(g.result === '1/2-1/2' ? '½–½' : g.result)}</span></button>`).join('') : '<p class="small mute">Games you play here appear in this list.</p>';
+  $('#recent').innerHTML = gs.length ? gs.map(g => `<button class="moment" data-id="${esc(g.id)}"><span>${esc(g.date.slice(5))}</span><span></span><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.white)} – ${esc(g.black)}</b><span>${esc(g.result === '1/2-1/2' ? '½–½' : g.result === '*' ? 'unfinished' : g.result)}</span></button>`).join('') : '<p class="small mute">Games you play here appear in this list.</p>';
 }
-$('#recent').onclick = e => { const b = e.target.closest('[data-id]'); if (!b) return; const g = S().games.find(x => x.id === b.dataset.id); if (g) loadReview(g.pgn, g.me); };
+$('#recent').onclick = e => { const b = e.target.closest('[data-id]'); if (!b) return; const g = S().games.find(x => x.id === b.dataset.id); if (g && loadReview(g.pgn, g.me)) R.gid = g.id; };
 $('#pgnFile').onchange = async e => { const f = e.target.files[0]; if (f) $('#pgnIn').value = await f.text(); };
 $('#analyseBtn').onclick = () => {
   const txt = $('#pgnIn').value.trim(); if (!txt) { A.toast('Paste a PGN first'); return; }
@@ -36,7 +37,7 @@ function loadReview(pgn, me) {
   const start = new Chess(R.headers.SetUp === '1' && R.headers.FEN ? R.headers.FEN : undefined);
   R.fens = [start.fen()]; R.moves = [];
   for (const m of hist) { const fb = start.fen(); const mm = start.move(m.san); R.moves.push({ san: mm.san, u: K.uciOf(mm), color: mm.color, fen: fb, captured: mm.captured }); R.fens.push(start.fen()); }
-  R.an = []; R.cls = []; R.cur = 0; R.ex = null; R.retry = false; R.done = false; R.expl = {}; R.added = 0;
+  R.gid = null; R.an = []; R.cls = []; R.cur = 0; R.ex = null; R.retry = false; R.done = false; R.expl = {}; R.added = 0;
   const pick = $('#asSide').value;
   R.me = me || (pick === 'auto' ? detectMe(R.headers) : pick) || null;
   rb.flip(R.me === 'b' ? 'b' : 'w');
@@ -61,28 +62,29 @@ async function run() {
   }
   R.done = true; $('#rprog').hidden = true; finish(); render();
 }
-function inBook(i) { for (let k = 0; k <= i; k++) { const e = K.BOOK.get(K.key4(R.fens[k])); if (!e || !e.moves.has(R.moves[k].u)) return false; } return true; }
-function classifyAt(i) {
+function inBook(i, R = RS) { for (let k = 0; k <= i; k++) { const e = K.BOOK.get(K.key4(R.fens[k])); if (!e || !e.moves.has(R.moves[k].u)) return false; } return true; }
+function classifyAt(i, R = RS) {
   const m = R.moves[i]; const prev = i > 0 ? R.cls[i - 1] : null;
   const prevWinBefore = i > 0 && R.an[i - 1] ? K.winFor(R.an[i - 1].lines[0], m.color) : null;
-  R.cls[i] = K.classify({ fen: m.fen, u: m.u, pre: R.an[i], post: R.an[i + 1], color: m.color, inBook: inBook(i), prevCls: prev && prev.cls, prevWinBefore });
+  R.cls[i] = K.classify({ fen: m.fen, u: m.u, pre: R.an[i], post: R.an[i + 1], color: m.color, inBook: inBook(i, R), prevCls: prev && prev.cls, prevWinBefore });
   R.cls[i].wb = K.winFor(R.an[i].lines[0], m.color); R.cls[i].wa = K.winFor(R.an[i + 1].lines[0], m.color);
 }
-function addDrill(i) {
+function addDrill(i, R = RS) {
   const m = R.moves[i], c = R.cls[i]; const s = S();
   if (s.drills.some(d => d.fen === m.fen)) return false;
   s.drills.push({ id: A.uid(), fen: m.fen, played: m.u, best: R.an[i].lines[0].move, cls: c.cls, src: `${R.headers.White || '?'} – ${R.headers.Black || '?'}`, box: 0, due: Date.now(), n: 0, ok: 0, created: Date.now() });
   return true;
 }
-function finish() {
-  const sum = summary(); const s = S(); const key = R.fens[R.fens.length - 1] + '|' + R.moves.length;
+function finish(R = RS) {
+  const sum = summary(R); const s = S(); const key = R.fens[R.fens.length - 1] + '|' + R.moves.length;
   if (s.reviews.some(r => r.key === key)) return;
+  if (R.gid) s.reviews = s.reviews.filter(r => r.gid !== R.gid);
   const phase = { op: 0, mid: 0, end: 0 }, nPhase = { op: 0, mid: 0, end: 0 };
   R.moves.forEach((m, i) => {
     if (R.me && m.color !== R.me) return;
     const ph = A.phaseOf(i, m.fen); nPhase[ph]++;
     const c = R.cls[i]; if (!c) return;
-    if (['mistake', 'blunder', 'miss'].includes(c.cls)) { phase[ph]++; if (R.me && addDrill(i)) R.added++; }
+    if (['mistake', 'blunder', 'miss'].includes(c.cls)) { phase[ph]++; if (R.me && addDrill(i, R)) R.added++; }
   });
   if (R.me) {
     const res = R.headers.Result; const won = (R.me === 'w' && res === '1-0') || (R.me === 'b' && res === '0-1');
@@ -91,10 +93,10 @@ function finish() {
       if (K.winFor(R.an[i].lines[0], R.me) >= 85 && Math.abs(K.cpv(R.an[i].lines[0])) < 9000) { if (!s.conv.some(c => c.fen === fen)) s.conv.push({ id: A.uid(), fen, src: `${R.headers.White || '?'} – ${R.headers.Black || '?'}`, title: `Move ${Math.ceil(i / 2)}, ${K.fmtEval(R.an[i].lines[0])}` }); break; }
     }
   }
-  s.reviews.push({ key, date: A.today(), white: R.headers.White || 'White', black: R.headers.Black || 'Black', me: R.me, accW: sum.acc.w, accB: sum.acc.b, opening: sum.opening, phase, nPhase, counts: sum.counts });
+  s.reviews.push({ key, gid: R.gid || null, date: A.today(), white: R.headers.White || 'White', black: R.headers.Black || 'Black', me: R.me, accW: sum.acc.w, accB: sum.acc.b, opening: sum.opening, phase, nPhase, counts: sum.counts });
   K.save(); A.refresh();
 }
-function summary() {
+function summary(R = RS) {
   const acc = { w: [], b: [] }, ph = { w: { op: [], mid: [], end: [] }, b: { op: [], mid: [], end: [] } }, counts = { w: {}, b: {} };
   R.moves.forEach((m, i) => { const c = R.cls[i]; if (!c) return; const a = c.cls === 'book' || c.cls === 'forced' ? 100 : K.moveAcc(c.loss); acc[m.color].push(a); ph[m.color][A.phaseOf(i, m.fen)].push(a); counts[m.color][c.cls] = (counts[m.color][c.cls] || 0) + 1; });
   const pa = c => Object.fromEntries(Object.entries(ph[c]).map(([k, v]) => [k, v.length ? K.gameAcc(v) : null]));
@@ -218,4 +220,48 @@ function graph() {
 const gro = new ResizeObserver(graph); gro.observe($('#graph'));
 $('#graph').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); go(Math.round((e.clientX - r.left) / r.width * (R.fens.length - 1))); };
 A.views.review = { enter() { renderRecent(); graph(); }, refresh() { renderRecent(); if (R.fens.length) render(); } };
+
+/* ---------- background reviews ----------
+   Games you play against a bot or a friend are reviewed quietly in the background (finished or not),
+   so their mistakes turn into drills without you having to open Review. */
+A.queueReview = id => { const s = S(); s.reviewQ = s.reviewQ || []; if (id && !s.reviewQ.includes(id)) s.reviewQ.push(id); K.save(); };
+function gameState(g) {
+  const c = new Chess(); const clean = (g.pgn || '').replace(/\{[^}]*\}/g, ' ').replace(/\$\d+/g, '');
+  if (!c.load_pgn(clean, { sloppy: true })) return null;
+  const hist = c.history({ verbose: true }); if (hist.length < 10) return null;
+  const st = { headers: c.header(), fens: [], moves: [], an: [], cls: [], me: g.me, gid: g.id, added: 0 };
+  const start = new Chess(st.headers.SetUp === '1' && st.headers.FEN ? st.headers.FEN : undefined);
+  st.fens = [start.fen()];
+  for (const m of hist) { const fb = start.fen(); const mm = start.move(m.san); st.moves.push({ san: mm.san, u: K.uciOf(mm), color: mm.color, fen: fb, captured: mm.captured }); st.fens.push(start.fen()); }
+  return st;
+}
+let bgBusy = false, bgBooted = false;
+const busy = () => (A.playLive && A.playLive() && A.cur() === 'play') || (R.token && !R.done && R.fens.length);
+async function bgTick() {
+  if (bgBusy || !K.eng || busy()) return;
+  const s = S(); s.reviewQ = s.reviewQ || [];
+  if (!bgBooted) {   // pick up games from before this feature, or left mid-way when the tab closed
+    bgBooted = true;
+    s.games.filter(g => g.me && !g.rev && g.src !== 'import' && !s.reviewQ.includes(g.id)).forEach(g => s.reviewQ.push(g.id));
+  }
+  if (!s.reviewQ.length) return;
+  bgBusy = true;
+  try {
+    const id = s.reviewQ[0]; const g = s.games.find(x => x.id === id);
+    const st = g && g.me ? gameState(g) : null;
+    if (!st) { s.reviewQ.shift(); if (g) g.rev = 1; K.save(); return; }
+    const depth = 12;
+    for (let i = 0; i < st.fens.length; i++) {
+      if (busy()) return;                       // you started playing or reviewing: pick this up later
+      const r = await K.analyse(st.fens[i], depth, 2, { tag: 'bg' });
+      const got = r.lines[0] && (r.lines[0].depth || depth);
+      if (!r.lines.length || (got && got < depth - 1 && !r.lines[0].over)) return;   // interrupted: retry later
+      st.an[i] = r; if (i > 0) classifyAt(i - 1, st);
+    }
+    st.done = true; finish(st);
+    s.reviewQ = s.reviewQ.filter(x => x !== id); g.rev = 1; K.save(); A.refresh();
+    if (st.added) A.toast(`${st.added} mistake${st.added === 1 ? '' : 's'} from your game vs ${g.me === 'w' ? g.black : g.white} added to Mistake drills`);
+  } catch (e) { } finally { bgBusy = false; }
+}
+setInterval(bgTick, 2500);
 }
