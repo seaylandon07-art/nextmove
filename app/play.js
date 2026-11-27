@@ -89,7 +89,7 @@ function startGame(opts = {}) {
   if (P.mode === 'local') P.me = 'w';
   else if (P.mode === 'online') P.me = opts.color;
   else P.me = opts.color || (P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color);
-  const tc = TCS[opts.tc || P.tc]; P.clocks = tc ? { w: tc[0] * 1000, b: tc[0] * 1000, inc: tc[1] * 1000, t: null } : null;
+  const tc = TCS[opts.tc || P.tc]; P.clocks = tc ? { w: tc[0] * 1000, b: tc[0] * 1000, inc: tc[1] * 1000, t: null, base: tc[0] * 1000 } : null;
   P.line = P.mode === 'bot' && !opts.pre ? pickLine(P.me === 'w' ? 'b' : 'w') : null;
   if (opts.pre) for (const u of opts.pre) K.mv(P.g, u);
   pb.flip(P.me);
@@ -103,6 +103,7 @@ function startGame(opts = {}) {
 // continue a trained line as a real game against a bot near your level
 A.BOTS = BOTS;
 A.quickBot = (i, color) => { leaveOnline(); P.mode = 'bot'; P.bot = i; A.go('play'); startGame(color ? { color } : {}); };
+A.playMode = m => { P.mode = m; if (P.g && !P.over) { A.go('play'); return; } newGame(); A.go('play'); renderSetup(); };
 A.playOnline = () => { P.mode = 'online'; newGame(); A.go('play'); renderSetup(); };
 A.botForMe = () => { const r = S().puz.r || 1000; let bi = 0; BOTS.forEach((b, i) => { if (Math.abs(b.r - r) < Math.abs(BOTS[bi].r - r)) bi = i; }); return { i: bi, name: BOTS[bi].n, r: BOTS[bi].r }; };
 A.playFrom = (moves, color, title) => {
@@ -201,13 +202,19 @@ function bookMove() {
 async function botMove() {
   P.thinking = true; render();
   const b = botObj(); const fen = P.g.fen(); const gid = P.g; const t0 = performance.now();
+  // Bots play like people on the clock: faster games and low time mean shallower thinking and more slips.
+  const ck = P.clocks, mine = ck ? ck[P.g.turn()] : null;
+  const pace = !ck ? 1 : ck.base <= 60000 ? .5 : ck.base <= 180000 ? .7 : ck.base <= 300000 ? .85 : 1;
+  const panic = ck && mine < 10000 ? .1 : ck && mine < 20000 ? .05 : 0;
+  const slip = (b.rand || 0) + (ck ? (1 - pace) * .12 : 0) + panic;
   let u = bookMove();
   if (!u) {
     const legal = P.g.moves({ verbose: true });
-    if (b.rand && Math.random() < b.rand) u = K.uciOf(legal[Math.floor(Math.random() * legal.length)]);
-    else { const j = await K.eng.run(fen, { depth: b.depth, skill: b.skill ?? 20, elo: b.elo, multipv: 1 }); u = j.best; }
+    if (slip && Math.random() < slip) u = K.uciOf(legal[Math.floor(Math.random() * legal.length)]);
+    else { const j = await K.eng.run(fen, { depth: Math.max(1, Math.round(b.depth * pace)), skill: b.skill != null ? Math.max(0, Math.round(b.skill * pace)) : 20, elo: b.elo ? Math.max(1320, Math.round(b.elo - (1 - pace) * 500)) : undefined, multipv: 1 }); u = j.best; }
   }
-  const think = P.clocks ? 250 + Math.random() * 500 : 350 + Math.random() * 600;
+  // spend clock time like a human: a slice of what's left, a bit random, quicker when short
+  const think = ck ? Math.min(mine * .12, Math.max(400, (mine / (ck.base <= 60000 ? 26 : 32) + ck.inc * .7) * (.55 + Math.random() * .9))) : 350 + Math.random() * 600;
   const wait = think - (performance.now() - t0); if (wait > 0) await K.sleep(wait);
   if (gid !== P.g || P.over || P.g.fen() !== fen) { P.thinking = false; return; }
   const color = P.g.turn();

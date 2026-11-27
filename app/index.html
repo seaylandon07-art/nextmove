@@ -442,10 +442,90 @@ body[data-bg=felt] #bgfx::after{background:radial-gradient(ellipse at 50% 30%,rg
 .ratings small{display:block;color:var(--mute);font-size:12.5px}.ratings b{display:block;font-size:40px;font-weight:600;font-stretch:78%;line-height:1.05;font-variant-numeric:tabular-nums;color:var(--ink)}
 .ratings>div:first-child b{color:var(--acc2)}
 .ratings span{font-size:12.5px;color:var(--mute)}.ratings span.up{color:var(--ok)}.ratings span.down{color:var(--no)}
+.art,.mart,.tart{display:block}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 14px 14px;border-radius:20px;border:0;cursor:pointer;color:inherit;font:inherit;text-align:left;background:linear-gradient(180deg,rgba(150,166,232,.08),rgba(150,166,232,.03));box-shadow:inset 0 1px 0 var(--edge),0 0 0 1px var(--line);transition:background .2s,transform .2s var(--out)}
+.mode:hover{background:rgba(150,166,232,.12);transform:translateY(-2px)}.mode:active{transform:scale(.97)}
+.mode .art{width:84px;height:84px;margin:0 auto 6px;transition:transform .35s var(--spring)}
+.mode:hover .art{transform:scale(1.06) rotate(-2deg)}
+.mode b{font-size:15px;font-weight:600}.mode small{color:var(--mute);font-size:12.5px;line-height:1.35}
+#modeSeg .mart{width:38px;height:38px;margin-bottom:-2px;transition:transform .3s var(--spring)}
+#modeSeg button.on .mart{transform:scale(1.08)}
+#modeSeg button{min-height:70px}
+.item .ti.art{background:none;box-shadow:none;width:46px;height:46px}.item .ti.art svg{width:46px;height:46px}
+.tile .tart{position:absolute;right:6px;bottom:4px;width:86px;height:86px;opacity:.95;transition:transform .35s var(--spring)}
+.tile:hover .tart{transform:scale(1.07) rotate(-3deg)}
+.tile.feature .tart{width:132px;height:132px;right:12px;bottom:6px}
+.tile b,.tile small{max-width:calc(100% - 70px);position:relative}.tile.feature b,.tile.feature small{max-width:calc(100% - 140px)}
+.tile em{right:auto;left:18px;top:auto;bottom:16px;position:absolute}
+.tile{padding-bottom:44px}
+@media(max-width:700px){.modes{grid-template-columns:repeat(3,minmax(0,1fr))}.mode{padding:8px 10px 12px}.mode .art{width:64px;height:64px}.mode small{display:none}.tile .tart{width:64px;height:64px}.tile.feature .tart{width:96px;height:96px}.tile.feature b,.tile.feature small{max-width:calc(100% - 100px)}}
 </style>
 </head>
 <body>
 <div id="bgfx" aria-hidden="true"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gIv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf8f0"/><stop offset="1" stop-color="#d9d2c0"/></linearGradient>
+    <linearGradient id="gPw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9aa3c9"/><stop offset="1" stop-color="#5d678f"/></linearGradient>
+    <linearGradient id="gGd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe8bf"/><stop offset="1" stop-color="#d9a64f"/></linearGradient>
+    <radialGradient id="gGlow" cx=".5" cy=".55" r=".5"><stop offset="0" stop-color="#f1cf86" stop-opacity=".28"/><stop offset="1" stop-color="#f1cf86" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gGlowB" cx=".5" cy=".55" r=".5"><stop offset="0" stop-color="#8f9cff" stop-opacity=".28"/><stop offset="1" stop-color="#8f9cff" stop-opacity="0"/></radialGradient>
+    <g id="pPawn"><circle cx="0" cy="-23" r="9"/><path d="M-9 -12h18l-3 6c6 6 8 15 9 23h-30c1-8 3-17 9-23z"/><rect x="-17" y="17" width="34" height="8" rx="3"/></g>
+    <g id="pKnight"><path d="M-15 17c0-13 3-21 9-27-5 1-10 4-13 8l-7-5c3-11 10-19 19-23l-2-6c7-2 13 0 17 5l6-2c-2 5-3 10-1 16 4 10 6 20 6 34z"/><circle cx="1" cy="-17" r="2" fill="#2a3156"/><rect x="-19" y="17" width="38" height="8" rx="3"/></g>
+    <g id="pKing"><rect x="-2.5" y="-40" width="5" height="16" rx="1.5"/><rect x="-8" y="-35" width="16" height="5" rx="1.5"/><path d="M-12 -22c6-4 18-4 24 0l-3 9c6 8 8 18 9 30h-36c1-12 3-22 9-30z"/><rect x="-19" y="17" width="38" height="8" rx="3"/></g>
+    <g id="pRook"><path d="M-15 -26h7v6h5v-6h6v6h5v-6h7v13l-5 5v22l7 8h-38l7-8v-22l-5-5z"/><rect x="-19" y="17" width="38" height="8" rx="3"/></g>
+  </defs>
+  <symbol id="ill-bot" viewBox="0 0 120 120"><circle cx="60" cy="64" r="52" fill="url(#gGlowB)"/>
+    <line x1="44" y1="22" x2="44" y2="32" stroke="#9aa3c9" stroke-width="3" stroke-linecap="round"/><circle cx="44" cy="20" r="4" fill="url(#gGd)"/>
+    <rect x="18" y="32" width="52" height="42" rx="13" fill="url(#gPw)"/><rect x="25" y="40" width="38" height="24" rx="8" fill="#141a33"/>
+    <circle cx="36" cy="52" r="5" fill="url(#gGd)"/><circle cx="52" cy="52" r="5" fill="url(#gGd)"/><rect x="34" y="78" width="20" height="10" rx="3" fill="#5d678f"/>
+    <use href="#pKnight" transform="translate(86 74) scale(.9)" fill="url(#gIv)"/></symbol>
+  <symbol id="ill-online" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <circle cx="56" cy="66" r="32" fill="url(#gPw)"/><ellipse cx="56" cy="66" rx="14" ry="32" fill="none" stroke="#c6cdee" stroke-width="2.5" opacity=".7"/><path d="M24 66h64M30 50h52M30 82h52" stroke="#c6cdee" stroke-width="2.5" opacity=".7"/>
+    <path d="M86 28a16 16 0 0 1 16 16M86 18a26 26 0 0 1 26 26" fill="none" stroke="url(#gGd)" stroke-width="4" stroke-linecap="round"/>
+    <use href="#pPawn" transform="translate(88 82) scale(.75)" fill="url(#gIv)"/></symbol>
+  <symbol id="ill-friend" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <path d="M6 84l22-22 14 14-22 22z" fill="url(#gPw)"/><path d="M114 84L92 62 78 76l22 22z" fill="#c9c2b0"/>
+    <path d="M28 62l18-16c6-5 13-6 19-2l18 12c4 3 4 8 0 11-3 2-7 2-10 0l-9-6" fill="url(#gIv)"/>
+    <path d="M92 62L74 46c-4-3-9-3-13 0l-7 6c-3 3-2 7 1 9 3 2 7 2 10 0l5-4" fill="url(#gPw)"/>
+    <path d="M42 76l10 9c3 3 8 3 11 0M50 70l11 10c3 3 8 3 11 0M58 65l10 9c3 3 7 3 10 0" fill="none" stroke="#e8e3d6" stroke-width="6" stroke-linecap="round"/>
+    <path d="M42 76l10 9c3 3 8 3 11 0M50 70l11 10c3 3 8 3 11 0M58 65l10 9c3 3 7 3 10 0" fill="none" stroke="#bdb5a1" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>
+    <path d="M60 18l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="url(#gGd)"/></symbol>
+  <symbol id="ill-local" viewBox="0 0 120 120"><circle cx="60" cy="64" r="52" fill="url(#gGlowB)"/>
+    <path d="M20 96l14-30h52l14 30z" fill="#e8e3d6"/><path d="M27 81h66M34 66l-7 30M47 66l-4 30M60 66v30M73 66l4 30M86 66l7 30" stroke="#7a84ab" stroke-width="2" opacity=".55"/>
+    <use href="#pKing" transform="translate(42 62) scale(.8)" fill="url(#gIv)" stroke="#5d678f" stroke-width="1.5"/>
+    <use href="#pKing" transform="translate(80 62) scale(.8)" fill="url(#gPw)"/></symbol>
+  <symbol id="ill-drills" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <g transform="translate(26 30)"><rect width="60" height="60" rx="8" fill="#e8e3d6"/><path d="M15 0h15v15H15zM45 0h15v15H45zM0 15h15v15H0zM30 15h15v15H30zM15 30h15v15H15zM45 30h15v15H45zM0 45h15v15H0zM30 45h15v15H30z" fill="#7a84ab"/><rect x="30" y="15" width="15" height="15" fill="#ff6f7d" opacity=".85"/></g>
+    <path d="M94 44a34 34 0 1 1-12-14" fill="none" stroke="url(#gGd)" stroke-width="6" stroke-linecap="round"/><path d="M76 20l10 10-13 4z" fill="#e2b45f"/></symbol>
+  <symbol id="ill-puzzle" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <circle cx="62" cy="64" r="34" fill="none" stroke="#7a84ab" stroke-width="4"/><circle cx="62" cy="64" r="22" fill="none" stroke="#9aa3c9" stroke-width="4"/><circle cx="62" cy="64" r="8" fill="url(#gGd)"/>
+    <use href="#pKnight" transform="translate(40 70) scale(.95)" fill="url(#gIv)"/>
+    <path d="M96 16L84 38h10l-6 18 16-24H94z" fill="url(#gGd)"/></symbol>
+  <symbol id="ill-rush" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <rect x="52" y="14" width="16" height="9" rx="3" fill="#9aa3c9"/><circle cx="60" cy="66" r="36" fill="url(#gPw)"/><circle cx="60" cy="66" r="28" fill="#141a33"/>
+    <path d="M60 66V44" stroke="#e8e3d6" stroke-width="4" stroke-linecap="round"/><path d="M60 66a22 22 0 0 0 19-11L60 66z" fill="url(#gGd)" opacity=".85"/><circle cx="60" cy="66" r="4" fill="#e8e3d6"/>
+    <path d="M16 54h14M12 66h16M16 78h14" stroke="url(#gGd)" stroke-width="4" stroke-linecap="round"/></symbol>
+  <symbol id="ill-open" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <path d="M14 82c16-6 30-6 46 2 16-8 30-8 46-2V98c-16-6-30-6-46 2-16-8-30-8-46-2z" fill="url(#gPw)"/><path d="M18 80c14-5 27-5 40 2v14c-13-6-26-6-40-1zM62 82c13-7 26-7 40-2v15c-14-5-27-5-40 1z" fill="#e8e3d6"/>
+    <path d="M24 86h26M24 91h22M68 86h26M70 91h22" stroke="#9aa3c9" stroke-width="2"/>
+    <use href="#pKnight" transform="translate(42 58) scale(.72)" fill="url(#gIv)" stroke="#5d678f" stroke-width="1.2"/><use href="#pPawn" transform="translate(78 62) scale(.62)" fill="url(#gGd)"/></symbol>
+  <symbol id="ill-gambit" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <path d="M30 96L84 26l8 6-50 70z" fill="#c6cdee"/><path d="M84 26l14-8-4 16z" fill="#e8e3d6"/><path d="M28 86l14 12-4 4-14-12z" fill="url(#gGd)"/><rect x="18" y="92" width="8" height="14" rx="3" transform="rotate(-50 22 99)" fill="#7a84ab"/>
+    <use href="#pPawn" transform="translate(82 82) rotate(24) scale(.75)" fill="url(#gIv)"/>
+    <path d="M100 52l4-4M104 64h6M98 40l2-6" stroke="url(#gGd)" stroke-width="3.5" stroke-linecap="round"/></symbol>
+  <symbol id="ill-end" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <path d="M20 100h80" stroke="#7a84ab" stroke-width="3" stroke-linecap="round"/>
+    <use href="#pKing" transform="translate(48 76) scale(1.05)" fill="url(#gIv)"/><use href="#pRook" transform="translate(84 84) scale(.7)" fill="url(#gPw)"/>
+    <path d="M30 22l6 10 8-12 8 12 6-10-3 18H33z" fill="url(#gGd)"/></symbol>
+  <symbol id="ill-vision" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlowB)"/>
+    <g opacity=".85"><rect x="26" y="56" width="68" height="44" rx="6" fill="#e8e3d6"/><path d="M43 56h17v11H43zM77 56h17v11H77zM26 67h17v11H26zM60 67h17v11H60zM43 78h17v11H43zM77 78h17v11H77zM26 89h17v11H26zM60 89h17v11H60z" fill="#7a84ab"/></g>
+    <path d="M16 36c12-16 26-22 44-22s32 6 44 22c-12 16-26 22-44 22S28 52 16 36z" fill="url(#gPw)"/><circle cx="60" cy="36" r="14" fill="#141a33"/><circle cx="60" cy="36" r="7" fill="url(#gGd)"/><circle cx="64" cy="32" r="2.5" fill="#fff"/></symbol>
+  <symbol id="ill-review" viewBox="0 0 120 120"><circle cx="60" cy="62" r="52" fill="url(#gGlow)"/>
+    <rect x="16" y="30" width="88" height="64" rx="12" fill="url(#gPw)"/><rect x="24" y="38" width="72" height="48" rx="6" fill="#141a33"/>
+    <path d="M28 74l14-12 10 8 14-20 12 10 14-14" fill="none" stroke="url(#gGd)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="66" cy="50" r="5" fill="#ff6f7d"/></symbol>
+</svg>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M9 20h6M8 17h8l-1-6h-6zM12 4v2M10 5h4M9 11c-1-1-1-3 0-4h6c1 1 1 3 0 4"/></symbol>
   <symbol id="i-review" viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 6-8 3 3"/><path d="M3 21h18"/></symbol>
@@ -536,8 +616,12 @@ body[data-bg=felt] #bgfx::after{background:radial-gradient(ellipse at 50% 30%,rg
     </div>
     <div class="hsec">
       <div class="hhead"><h2>Play</h2><a class="btn quiet" href="#play">All opponents</a></div>
+      <div class="modes">
+        <button class="mode" data-mode-go="bot"><svg class="art"><use href="#ill-bot"/></svg><b>Play a bot</b><small>10 opponents, 400 to 3000</small></button>
+        <button class="mode" id="homeFriend"><svg class="art"><use href="#ill-friend"/></svg><b>Play a friend</b><small>Send a code, play online</small></button>
+        <button class="mode" data-mode-go="local"><svg class="art"><use href="#ill-local"/></svg><b>Pass and play</b><small>Two players, one device</small></button>
+      </div>
       <div class="qbots" id="homeBots"></div>
-      <button class="friend" id="homeFriend"><svg class="i"><use href="#i-wifi"/></svg><span><b>Play a friend online</b><small>Create a game, send them the code</small></span><svg class="i"><use href="#i-right"/></svg></button>
     </div>
   </div>
 
@@ -563,7 +647,7 @@ body[data-bg=felt] #bgfx::after{background:radial-gradient(ellipse at 50% 30%,rg
   <aside class="panel" id="playPanel">
     <div id="setup">
       <section>
-        <div class="seg" id="modeSeg"><button data-mode="bot"><svg class="i"><use href="#i-cpu"/></svg> Computer</button><button data-mode="local"><svg class="i"><use href="#i-users"/></svg> Same device</button><button data-mode="online"><svg class="i"><use href="#i-wifi"/></svg> Online</button></div>
+        <div class="seg" id="modeSeg"><button data-mode="bot"><svg class="mart"><use href="#ill-bot"/></svg>Computer</button><button data-mode="local"><svg class="mart"><use href="#ill-local"/></svg>Same device</button><button data-mode="online"><svg class="mart"><use href="#ill-friend"/></svg>Friend online</button></div>
       </section>
       <section id="botSec"><h3>Opponent</h3><div class="bots" id="bots"></div></section>
       <section id="openSec"><label class="f">Bot opening<select id="botOpen"></select></label></section>
@@ -658,21 +742,21 @@ body[data-bg=felt] #bgfx::after{background:radial-gradient(ellipse at 50% 30%,rg
     <div class="thead" id="today"></div>
     <div class="groups">
       <div class="group"><h3>From your games</h3><div class="list">
-        <button class="item" data-start="drills"><span class="ti"><svg class="i"><use href="#i-repeat"/></svg></span><span><b>Mistake drills</b><small>Positions where you went wrong, repeated until they stick</small></span><em id="hDrills"></em><svg class="i"><use href="#i-right"/></svg></button>
-        <button class="item" data-start="conv"><span class="ti"><svg class="i"><use href="#i-trophy"/></svg></span><span><b>Convert your wins</b><small>Winning positions you didn't finish, against full Stockfish</small></span><em id="hConv"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="drills"><span class="ti art"><svg><use href="#ill-drills"/></svg></span><span><b>Mistake drills</b><small>Positions where you went wrong, repeated until they stick</small></span><em id="hDrills"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="conv"><span class="ti art"><svg><use href="#ill-end"/></svg></span><span><b>Convert your wins</b><small>Winning positions you didn't finish, against full Stockfish</small></span><em id="hConv"></em><svg class="i"><use href="#i-right"/></svg></button>
       </div></div>
       <div class="group"><h3>Tactics</h3><div class="list">
-        <button class="item" data-start="tactics"><span class="ti"><svg class="i"><use href="#i-knight"/></svg></span><span><b>Rated puzzles</b><small>Difficulty follows your rating; any winning move counts</small></span><em id="hTactics"></em><svg class="i"><use href="#i-right"/></svg></button>
-        <button class="item" data-start="streak"><span class="ti"><svg class="i"><use href="#i-flame"/></svg></span><span><b>Puzzle streak</b><small>Gets harder every solve. One miss ends it</small></span><em id="hStreak"></em><svg class="i"><use href="#i-right"/></svg></button>
-        <button class="item" data-start="rush"><span class="ti"><svg class="i"><use href="#i-bolt"/></svg></span><span><b>Puzzle rush</b><small>Three minutes, three strikes</small></span><em id="hRush"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="tactics"><span class="ti art"><svg><use href="#ill-puzzle"/></svg></span><span><b>Rated puzzles</b><small>Difficulty follows your rating; any winning move counts</small></span><em id="hTactics"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="streak"><span class="ti art"><svg><use href="#ill-rush"/></svg></span><span><b>Puzzle streak</b><small>Gets harder every solve. One miss ends it</small></span><em id="hStreak"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="rush"><span class="ti art"><svg><use href="#ill-rush"/></svg></span><span><b>Puzzle rush</b><small>Three minutes, three strikes</small></span><em id="hRush"></em><svg class="i"><use href="#i-right"/></svg></button>
       </div></div>
       <div class="group"><h3>Openings</h3><div class="list">
-        <button class="item" data-start="gambits"><span class="ti"><svg class="i"><use href="#i-swords"/></svg></span><span><b>Gambit lab</b><small>Gambits for both colours, their plans, and the traps</small></span><em id="hGambit"></em><svg class="i"><use href="#i-right"/></svg></button>
-        <button class="item" data-start="open"><span class="ti"><svg class="i"><use href="#i-book"/></svg></span><span><b>Opening courses</b><small>58 main lines up to 20 moves deep, with the ideas explained</small></span><em id="hOpen"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="gambits"><span class="ti art"><svg><use href="#ill-gambit"/></svg></span><span><b>Gambit lab</b><small>Gambits for both colours, their plans, and the traps</small></span><em id="hGambit"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="open"><span class="ti art"><svg><use href="#ill-open"/></svg></span><span><b>Opening courses</b><small>58 main lines up to 20 moves deep, with the ideas explained</small></span><em id="hOpen"></em><svg class="i"><use href="#i-right"/></svg></button>
       </div></div>
       <div class="group"><h3>Technique</h3><div class="list">
-        <button class="item" data-start="end"><span class="ti"><svg class="i"><use href="#i-crown"/></svg></span><span><b>Endgames</b><small>Basic mates, pawn and rook endings, defending draws</small></span><em id="hEnd"></em><svg class="i"><use href="#i-right"/></svg></button>
-        <button class="item" data-start="vision"><span class="ti"><svg class="i"><use href="#i-grid"/></svg></span><span><b>Board vision</b><small>Name squares fast — 30 seconds, from either side</small></span><em id="hVision"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="end"><span class="ti art"><svg><use href="#ill-end"/></svg></span><span><b>Endgames</b><small>Basic mates, pawn and rook endings, defending draws</small></span><em id="hEnd"></em><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="item" data-start="vision"><span class="ti art"><svg><use href="#ill-vision"/></svg></span><span><b>Board vision</b><small>Name squares fast — 30 seconds, from either side</small></span><em id="hVision"></em><svg class="i"><use href="#i-right"/></svg></button>
       </div></div>
     </div>
   </div>

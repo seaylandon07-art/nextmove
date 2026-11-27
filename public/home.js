@@ -87,7 +87,8 @@ function renderTrain() {
     ['end', 'i-crown', 'Endgames', 'Mates, pawn and rook endings.', A.EG.length ? `${eg}/${A.EG.length}` : ''],
     ['vision', 'i-grid', 'Board vision', 'Name squares fast from either side.', '']
   ];
-  $('#homeTrain').innerHTML = T.map(([m, ic, t, d, stat, feat]) => `<button class="tile${feat ? ' feature' : ''}" data-train="${m}"><span class="ti"><svg class="i"><use href="#${ic}"/></svg></span><b>${t}</b><small>${d}</small>${stat !== '' ? `<em>${esc(String(stat))}</em>` : ''}</button>`).join('');
+  const ART = { drills: 'ill-drills', tactics: 'ill-puzzle', rush: 'ill-rush', open: 'ill-open', gambits: 'ill-gambit', end: 'ill-end', vision: 'ill-vision' };
+  $('#homeTrain').innerHTML = T.map(([m, ic, t, d, stat, feat]) => `<button class="tile${feat ? ' feature' : ''}" data-train="${m}"><svg class="tart"><use href="#${ART[m]}"/></svg><b>${t}</b><small>${d}</small>${stat !== '' ? `<em>${esc(String(stat))}</em>` : ''}</button>`).join('');
 }
 
 /* ---------- daily puzzle ---------- */
@@ -149,6 +150,7 @@ function renderBots() {
 }
 $('#homeBots').onclick = e => { const b = e.target.closest('[data-bot]'); if (b) A.quickBot(+b.dataset.bot); };
 $('#homeFriend').onclick = () => A.playOnline();
+document.querySelectorAll('[data-mode-go]').forEach(b => b.onclick = () => A.playMode(b.dataset.modeGo));
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-train]'); if (t && A.startTrain) { e.preventDefault(); A.startTrain(t.dataset.train); return; }
   const sc = e.target.closest('[data-scroll]'); if (sc) $('#dpBd').scrollIntoView({ behavior: 'smooth', block: 'center' });
