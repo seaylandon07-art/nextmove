@@ -101,10 +101,56 @@ async function login(request, env) {
   return json({ token: await createSession(env, user.id), user: { id: user.id, username: user.username } });
 }
 
-async function handleApi(request, env, url) {
+
+/* ---------- game import (public chess.com / Lichess data) ---------- */
+const UA = { 'User-Agent': 'NextMove/1.0 (+https://nextmove.gg; chess training site)' };
+function pgnTag(pgn, tag) { const m = pgn.match(new RegExp('\\[' + tag + ' "([^"]*)"\\]')); return m ? m[1] : ''; }
+async function importGames(url, env, ctx) {
+  const site = url.searchParams.get('site'); const user = (url.searchParams.get('user') || '').trim();
+  if (!/^[A-Za-z0-9_-]{2,30}$/.test(user)) return error('Enter a valid username.');
+  if (!['chesscom', 'lichess'].includes(site)) return error('Pick Chess.com or Lichess.');
+  const cache = caches.default; const key = new Request(`https://cache.nextmove.gg/import/${site}/${user.toLowerCase()}`);
+  const hit = await cache.match(key); if (hit) return hit;
+  let games = [];
+  if (site === 'chesscom') {
+    const ar = await fetch(`https://api.chess.com/pub/player/${user.toLowerCase()}/games/archives`, { headers: UA });
+    if (ar.status === 404) return error('No Chess.com player with that username.', 404);
+    if (!ar.ok) return error('Chess.com did not answer. Try again in a minute.', 502);
+    const months = ((await ar.json()).archives || []).slice(-2).reverse();
+    for (const m of months) {
+      const r = await fetch(m, { headers: UA }); if (!r.ok) continue;
+      const list = ((await r.json()).games || []).filter(g => g.pgn && (g.rules || 'chess') === 'chess').reverse();
+      for (const g of list) {
+        const me = g.white.username.toLowerCase() === user.toLowerCase() ? 'w' : 'b';
+        games.push({ id: 'cc-' + (g.uuid || g.url), site, url: g.url, pgn: g.pgn, white: g.white.username, black: g.black.username, whiteElo: g.white.rating, blackElo: g.black.rating, result: pgnTag(g.pgn, 'Result') || '*', date: (pgnTag(g.pgn, 'Date') || '').replace(/\./g, '-'), time: g.time_class || '', end: g.end_time || 0, me });
+        if (games.length >= 40) break;
+      }
+      if (games.length >= 40) break;
+    }
+  } else {
+    const r = await fetch(`https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=40&pgnInJson=true&clocks=false&evals=false&opening=true`, { headers: { ...UA, Accept: 'application/x-ndjson' } });
+    if (r.status === 404) return error('No Lichess player with that username.', 404);
+    if (!r.ok) return error('Lichess did not answer. Try again in a minute.', 502);
+    const lines = (await r.text()).split('\n').filter(Boolean);
+    for (const l of lines) {
+      let g; try { g = JSON.parse(l); } catch (e) { continue; }
+      if (g.variant && g.variant !== 'standard' && g.variant !== 'fromPosition') continue;
+      const w = g.players.white, b = g.players.black; const wn = (w.user && w.user.name) || 'Anonymous', bn = (b.user && b.user.name) || 'Anonymous';
+      const me = wn.toLowerCase() === user.toLowerCase() ? 'w' : 'b';
+      games.push({ id: 'li-' + g.id, site, url: 'https://lichess.org/' + g.id, pgn: g.pgn, white: wn, black: bn, whiteElo: w.rating, blackElo: b.rating, result: pgnTag(g.pgn || '', 'Result') || '*', date: new Date(g.createdAt).toISOString().slice(0, 10), time: g.speed || '', end: g.lastMoveAt || g.createdAt, me });
+    }
+  }
+  const res = json({ user, site, games });
+  res.headers.set('Cache-Control', 'public, max-age=300');
+  ctx && ctx.waitUntil(cache.put(key, res.clone()));
+  return res;
+}
+
+async function handleApi(request, env, url, ctx) {
   const path = url.pathname;
   const method = request.method;
 
+  if (path === '/api/import' && method === 'GET') return importGames(url, env, ctx);
   if (path === '/api/signup' && method === 'POST') return signup(request, env);
   if (path === '/api/login' && method === 'POST') return login(request, env);
 
@@ -143,14 +189,14 @@ async function handleApi(request, env, url) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     // Always use HTTPS on the real site (same as Cloudflare's "Always Use HTTPS" toggle)
     if (url.protocol === 'http:' && (url.hostname.endsWith('nextmove.gg') || url.hostname.endsWith('.workers.dev'))) {
       return new Response(null, { status: 301, headers: { Location: `https://${url.host}${url.pathname}${url.search}`, 'X-Redirect': 'https' } });
     }
     if (url.pathname.startsWith('/api/')) {
-      try { return await handleApi(request, env, url); }
+      try { return await handleApi(request, env, url, ctx); }
       catch (e) { console.error(e); return error('Server error.', 500); }
     }
     return env.ASSETS.fetch(request);

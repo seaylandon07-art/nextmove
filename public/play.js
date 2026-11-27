@@ -273,6 +273,16 @@ function showRatings() {
   el.hidden = false;
   el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '–'}</b><span>${gr == null ? (P.coachAcc.filter(x => x != null).length < 6 ? 'Too short to rate' : 'Calculating…') : `${A.ccAcc(acc)}% accuracy`}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${esc(botObj().n)} (${botObj().r})</span></div>`;
 }
+$('#shareGame').onclick = async () => {
+  if (!P.g) return; const n = names(); const h = P.g.history({ verbose: true }); const s = S(); const res = P.g.header().Result;
+  const log = P.coachLog.filter(Boolean); const cnt = k => log.filter(x => x === k).length;
+  const acc = myAcc(); const gr = P.mode === 'bot' ? myGameRating() : null;
+  const blob = await A.shareCard({ kicker: P.mode === 'bot' ? `vs ${botObj().n} (${botObj().r})` : 'Game', title: `${n.w} vs ${n.b}`, sub: $('#overText').textContent,
+    fen: P.g.fen(), orient: P.me || 'w', last: h.length ? h[h.length - 1].from + h[h.length - 1].to : null,
+    cols: [{ name: P.mode === 'bot' ? 'You' : n.w, acc: acc != null ? A.ccAcc(acc) : null, rating: gr, me: true }, ...(P.mode === 'bot' && s.elo ? [{ name: 'Your rating', acc: null, rating: null, me: false, big: s.elo.r }] : [])].slice(0, 1),
+    counts: ['brilliant', 'great', 'best', 'inaccuracy', 'mistake', 'blunder'].map(cls => ({ cls, n: cnt(cls) })) });
+  if (blob) A.shareBlob(blob, 'nextmove-game.png', 'Just played on NextMove');
+};
 function coachSummary() {
   const log = P.coachLog.filter(Boolean); if (!log.length) return '';
   const n = k => log.filter(x => k.includes(x)).length;

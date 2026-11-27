@@ -113,6 +113,7 @@ function gr(c) {
 }
 function render() {
   if (!R.fens.length) return;
+  $('#shareReview').hidden = !R.done;
   const i = R.cur; const fen = R.ex ? R.ex.fen : R.fens[i];
   const arrows = []; let badge = null, last = null;
   if (R.ex) { last = R.ex.last; const l = R.ex.line; if (l && l.move) arrows.push({ from: l.move.slice(0, 2), to: l.move.slice(2, 4), c: '#e6a83a' }); }
@@ -229,6 +230,54 @@ function graph() {
 }
 const gro = new ResizeObserver(graph); gro.observe($('#graph'));
 $('#graph').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); go(Math.round((e.clientX - r.left) / r.width * (R.fens.length - 1))); };
+/* ---------- import from Chess.com / Lichess ---------- */
+const IMP = { site: 'chesscom', games: [] };
+if (window.NM_WEB) $('#impSec').hidden = false;
+(() => { const s = S(); if (s.imp) { IMP.site = s.imp.site || 'chesscom'; $('#impUser').value = s.imp.user || ''; } })();
+const siteSeg = () => $$('#impSite button').forEach(b => b.classList.toggle('on', b.dataset.site === IMP.site));
+siteSeg();
+$('#impSite').onclick = e => { const b = e.target.closest('[data-site]'); if (!b) return; IMP.site = b.dataset.site; siteSeg(); };
+const resOf = g => g.result === '1/2-1/2' ? 'd' : g.result === '*' ? 'u' : (g.result === '1-0') === (g.me === 'w') ? 'w' : 'l';
+function reviewedGid(id) { return S().reviews.some(r => r.gid === id); }
+function renderImp() {
+  const gs = IMP.games; if (!gs.length) return;
+  $('#impOut').innerHTML = `<div class="imp-head"><span class="small mute">${gs.length} recent games</span><button class="btn quiet" id="impAll" type="button">Review all in the background</button></div><div class="imp-list">${gs.map(g => {
+    const opp = g.me === 'w' ? g.black : g.white, oppR = g.me === 'w' ? g.blackElo : g.whiteElo, r = resOf(g);
+    return `<button class="imp" data-gid="${esc(g.id)}"><span class="res ${r}">${{ w: 'W', l: 'L', d: '½', u: '…' }[r]}</span><span><b>vs ${esc(opp)}${oppR ? ` (${oppR})` : ''}</b><small>${esc(g.time || '')} · ${esc(g.date || '')} · you played ${g.me === 'w' ? 'White' : 'Black'}</small></span><em class="${reviewedGid(g.id) ? 'done' : ''}">${reviewedGid(g.id) ? 'Reviewed' : 'Review'}</em></button>`;
+  }).join('')}</div>`;
+}
+function keepImported(g) {
+  const s = S(); if (!s.games.some(x => x.id === g.id)) { s.games.push({ id: g.id, pgn: g.pgn, date: g.date || A.today(), white: g.white, black: g.black, result: g.result, src: 'import', me: g.me, site: g.site }); s.games = s.games.slice(-60); }
+}
+$('#impForm').onsubmit = async e => {
+  e.preventDefault(); const user = $('#impUser').value.trim(); if (!user) return;
+  $('#impBtn').disabled = true; $('#impOut').innerHTML = '<p class="small mute" style="margin-top:10px">Loading your games…</p>';
+  try {
+    const r = await fetch(`/api/import?site=${IMP.site}&user=${encodeURIComponent(user)}`); const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not load games.');
+    IMP.games = d.games || []; S().imp = { site: IMP.site, user }; K.save();
+    if (!IMP.games.length) $('#impOut').innerHTML = '<p class="small mute" style="margin-top:10px">No recent standard games found for that player.</p>'; else renderImp();
+  } catch (err) { $('#impOut').innerHTML = `<p class="small" style="margin-top:10px;color:var(--no)">${esc(err.message)}</p>`; }
+  finally { $('#impBtn').disabled = false; }
+};
+$('#impOut').onclick = e => {
+  if (e.target.closest('#impAll')) {
+    let n = 0; IMP.games.forEach(g => { if (!reviewedGid(g.id)) { keepImported(g); A.queueReview(g.id); n++; } });
+    K.save(); A.toast(n ? `Reviewing ${n} game${n === 1 ? '' : 's'} in the background. Mistakes go to your drills.` : 'All of these are reviewed already.'); return;
+  }
+  const b = e.target.closest('[data-gid]'); if (!b) return; const g = IMP.games.find(x => x.id === b.dataset.gid); if (!g) return;
+  keepImported(g); K.save();
+  if (loadReview(g.pgn, g.me)) R.gid = g.id;
+};
+$('#shareReview').onclick = async () => {
+  if (!R.done) return; const sm = summary(); const me = R.me; const h = R.headers;
+  const counts = ['brilliant', 'great', 'best', 'mistake', 'miss', 'blunder'].map(cls => ({ cls, n: me ? (sm.counts[me][cls] || 0) : (sm.counts.w[cls] || 0) + (sm.counts.b[cls] || 0) }));
+  const res = h.Result === '1-0' ? 'White won' : h.Result === '0-1' ? 'Black won' : h.Result === '1/2-1/2' ? 'Draw' : 'Unfinished';
+  const blob = await A.shareCard({ kicker: 'Game review', title: `${h.White || 'White'} vs ${h.Black || 'Black'}`, sub: [res, sm.opening && sm.opening.name ? sm.opening.name : sm.opening].filter(x => x && typeof x === 'string').join(' · '),
+    fen: R.fens[R.fens.length - 1], orient: me || 'w', last: R.moves.length ? R.moves[R.moves.length - 1].u : null,
+    cols: ['w', 'b'].map(c => ({ name: (c === 'w' ? h.White : h.Black) || (c === 'w' ? 'White' : 'Black'), acc: A.ccAcc(sm.acc[c]), rating: gr(c), me: me === c })), counts });
+  if (blob) A.shareBlob(blob);
+};
 A.views.review = { enter() { renderRecent(); graph(); }, refresh() { renderRecent(); if (R.fens.length) render(); } };
 
 /* ---------- background reviews ----------

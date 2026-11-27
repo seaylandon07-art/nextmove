@@ -142,6 +142,67 @@ A.gameRating = ({ accs, prior = 1200, opp = null, known = true }) => {
 };
 // rough game rating from accuracy (like the big sites' "game rating"); short games are noisy
 A.accElo = acc => { if (acc == null) return null; const P = [[0, 100], [40, 250], [50, 400], [60, 700], [70, 1000], [80, 1400], [85, 1650], [90, 2000], [95, 2500], [98, 2900], [100, 3100]]; for (let i = 1; i < P.length; i++) if (acc <= P[i][0]) { const [a0, e0] = P[i - 1], [a1, e1] = P[i]; return Math.round((e0 + (acc - a0) / (a1 - a0) * (e1 - e0)) / 10) * 10; } return 3100; };
+
+/* ---------- share cards: a branded image of a game, ready for socials ---------- */
+// opts: { kicker, title, sub, fen, orient, last, cols: [{name, acc, rating, me}], counts: [{cls, n}], foot }
+A.shareCard = async opts => {
+  const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  await (document.fonts ? document.fonts.ready : Promise.resolve());
+  const F = (w, s, cond) => { x.font = `${w} ${s}px 'Instrument Sans', system-ui, sans-serif`; try { x.fontStretch = cond ? 'condensed' : 'normal'; } catch (e) { } };
+  const bg = x.createRadialGradient(W * .3, -100, 50, W * .3, -100, 1300); bg.addColorStop(0, '#1d2756'); bg.addColorStop(.7, '#0a0e1c'); bg.addColorStop(1, '#070a14');
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  const gold = x.createLinearGradient(0, 0, 0, 80); gold.addColorStop(0, '#f9e5b8'); gold.addColorStop(1, '#e2b45f');
+  // brand
+  const logo = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = 'icons/logo.svg'; });
+  if (logo) x.drawImage(logo, 64, 60, 64, 64);
+  F(650, 40, true); x.fillStyle = '#eceefb'; x.textBaseline = 'middle'; x.fillText('NextMove', 146, 93);
+  F(500, 26); x.fillStyle = '#8990b0'; x.textAlign = 'right'; x.fillText(opts.kicker || 'Game review', W - 64, 93); x.textAlign = 'left';
+  // title
+  F(650, 64, true); x.fillStyle = '#ffffff'; x.textBaseline = 'alphabetic'; x.fillText(opts.title || '', 64, 214, W - 128);
+  F(500, 28); x.fillStyle = '#8990b0'; x.fillText(opts.sub || '', 64, 258, W - 128);
+  // board
+  const bs = 600, bx = (W - bs) / 2, by = 300, sq = bs / 8; const css = getComputedStyle(document.body);
+  const L = css.getPropertyValue('--sqL').trim() || '#e8e3d6', D = css.getPropertyValue('--sqD').trim() || '#7a84ab';
+  x.save(); x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 50; x.shadowOffsetY = 24; x.fillStyle = D; x.beginPath(); x.roundRect(bx, by, bs, bs, 18); x.fill(); x.restore();
+  x.save(); x.beginPath(); x.roundRect(bx, by, bs, bs, 18); x.clip();
+  const flip = opts.orient === 'b'; const sqOf = s => { const f = s.charCodeAt(0) - 97, r = +s[1] - 1; return flip ? [7 - f, r] : [f, 7 - r]; };
+  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) { x.fillStyle = (r + f) % 2 ? D : L; x.fillRect(bx + f * sq, by + r * sq, sq, sq); }
+  if (opts.last) for (const s of [opts.last.slice(0, 2), opts.last.slice(2, 4)]) { const [f, r] = sqOf(s); x.fillStyle = 'rgba(241,196,104,.46)'; x.fillRect(bx + f * sq, by + r * sq, sq, sq); }
+  const P = K.PIECESETS[A.ui().pieces] || K.PIECESETS.cburnett; const rows = (opts.fen || K.START).split(' ')[0].split('/');
+  const imgs = {}; await Promise.all(Object.entries(P).map(([k, u]) => new Promise(ok => { const i = new Image(); i.onload = i.onerror = () => ok(); i.src = u; imgs[k] = i; })));
+  rows.forEach((row, ri) => { let fi = 0; for (const ch of row) { if (/\d/.test(ch)) { fi += +ch; continue; } const code = (ch === ch.toUpperCase() ? 'w' : 'b') + ch.toLowerCase(); const fr = flip ? 7 - fi : fi, rr = flip ? 7 - ri : ri; if (imgs[code]) x.drawImage(imgs[code], bx + fr * sq, by + rr * sq, sq, sq); fi++; } });
+  x.restore();
+  // players
+  const cols = opts.cols || []; const cw = (W - 128 - 24) / Math.max(1, cols.length);
+  cols.forEach((p, i) => {
+    const px = 64 + i * (cw + 24), py = 940;
+    x.fillStyle = p.me ? 'rgba(241,207,134,.10)' : 'rgba(150,166,232,.07)'; x.beginPath(); x.roundRect(px, py, cw, 220, 26); x.fill();
+    x.strokeStyle = p.me ? 'rgba(241,207,134,.45)' : 'rgba(160,176,236,.14)'; x.lineWidth = 2; x.stroke();
+    F(600, 28); x.fillStyle = '#c3c8e0'; x.fillText(p.name, px + 28, py + 52, cw - 56);
+    F(600, 96, true); x.fillStyle = p.me ? gold : '#eceefb'; x.fillText(p.acc != null ? String(p.acc) : '–', px + 26, py + 150);
+    const aw = x.measureText(p.acc != null ? String(p.acc) : '–').width; F(500, 28); x.fillStyle = '#8990b0'; x.fillText('% accuracy', px + 34 + aw, py + 150);
+    if (p.rating) { F(500, 26); x.fillStyle = '#8990b0'; x.fillText(`Game rating ${p.rating}`, px + 28, py + 192); }
+  });
+  // move quality chips
+  let cx = 64; const cy = 1196; F(600, 26);
+  for (const { cls, n } of (opts.counts || []).filter(c => c.n)) {
+    const C = K.CLS[cls]; if (!C) continue; const label = `${n} ${C.t || cls}`; const w = x.measureText(label).width + 66;
+    if (cx + w > W - 64) break;
+    x.fillStyle = 'rgba(150,166,232,.08)'; x.beginPath(); x.roundRect(cx, cy, w, 52, 26); x.fill();
+    x.fillStyle = C.c; x.beginPath(); x.arc(cx + 28, cy + 26, 13, 0, 7); x.fill();
+    F(700, 15); x.fillStyle = '#fff'; x.textAlign = 'center'; x.fillText(C.i, cx + 28, cy + 31); x.textAlign = 'left';
+    F(700, 26); x.fillStyle = '#eceefb'; x.fillText(String(n), cx + 50, cy + 35); const nw = x.measureText(String(n)).width; F(500, 26); x.fillStyle = '#c3c8e0'; x.fillText(C.t || cls, cx + 58 + nw, cy + 35); cx += w + 20;
+  }
+  F(500, 26); x.fillStyle = '#8990b0'; x.fillText(opts.foot || 'Free, unlimited game reviews at', 64, 1300);
+  const fw = x.measureText(opts.foot || 'Free, unlimited game reviews at').width; F(650, 26); x.fillStyle = gold; x.fillText(' nextmove.gg', 64 + fw, 1300);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+};
+A.shareBlob = async (blob, name = 'nextmove-game.png', text = 'My game, reviewed on NextMove') => {
+  const file = new File([blob], name, { type: 'image/png' });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text + ' https://nextmove.gg' }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  A.toast('Image saved. Post it anywhere.');
+};
 A.toast = msg => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); };
 A.clsChip = cls => { const c = CLS[cls]; return c ? `<em class="ic" style="background:${c.c}" title="${c.t}">${c.i}</em>` : ''; };
 A.legalFor = fenGetter => sq => { const c = new Chess(fenGetter()); return c.moves({ square: sq, verbose: true }).map(m => ({ to: m.to })); };

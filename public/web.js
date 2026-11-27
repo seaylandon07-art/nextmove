@@ -1,6 +1,7 @@
 /* NextMove web build: accounts, cloud save and online rooms through the site's own API.
    Provides the same small interface the app uses inside Claude (claude.use('db' | 'user' | 'room')). */
 (() => {
+  window.NM_WEB = true;
   const TOKEN_KEY = 'nm-token';
   let token = null;
   try { token = localStorage.getItem(TOKEN_KEY); } catch (e) { }
