@@ -178,6 +178,7 @@
   window.NM_ACCOUNT = () => openDialog();
   window.NM_PLAN = () => (user && user.plan) || 'free';
   window.NM_FOUNDER = () => !!(user && user.founder);
+  window.NM_COMP = () => !!(user && (user.comp || user.admin));
   window.NM_READY = () => ready;
   window.NM_API = api;
   window.NM_REFRESH_ME = async () => { try { user = (await api('/me')).user; } catch (e) { } renderBadge(); window.A && A.refresh && A.refresh(); return user; };

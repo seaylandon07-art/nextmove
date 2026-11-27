@@ -219,10 +219,11 @@ async function handleApi(request, env, url, ctx) {
   if (!user) return error('Not signed in.', 401);
 
   if (path === '/api/me' && method === 'GET') {
-    const row = await env.DB.prepare('SELECT email, recovery_hash, plan, plan_until, founder FROM users WHERE id = ?').bind(user.id).first();
-    const plus = isAdmin(env, user.username) || (row?.plan === 'plus' && (row.plan_until || 0) > Date.now());
-    return json({ user: { id: user.id, username: user.username, email: row?.email || null, hasRecovery: !!row?.recovery_hash, plan: plus ? 'plus' : 'free', planUntil: row?.plan_until || null, founder: !!row?.founder, admin: isAdmin(env, user.username) } });
+    const row = await env.DB.prepare('SELECT email, recovery_hash, plan, plan_until, founder, comp FROM users WHERE id = ?').bind(user.id).first();
+    const plus = isAdmin(env, user.username) || !!row?.comp || (row?.plan === 'plus' && (row.plan_until || 0) > Date.now());
+    return json({ user: { id: user.id, username: user.username, email: row?.email || null, hasRecovery: !!row?.recovery_hash, plan: plus ? 'plus' : 'free', planUntil: row?.plan_until || null, founder: !!row?.founder, comp: !!row?.comp, admin: isAdmin(env, user.username) } });
   }
+  if (path.startsWith('/api/admin/')) return admin(path, method, request, env, user);
   if (path === '/api/billing/checkout' && method === 'POST') return checkout(request, env, user, await request.json().catch(() => ({})));
   if (path === '/api/billing/portal' && method === 'POST') return portal(request, env, user);
   if (path === '/api/recovery' && method === 'POST') return json({ recoveryCode: await setRecovery(env, user.id) });
@@ -239,8 +240,9 @@ async function handleApi(request, env, url, ctx) {
     const rows = await env.DB.prepare('SELECT day, k, n FROM daily_stats WHERE day >= ? ORDER BY day').bind(since).all();
     const users = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first();
     const plus = await env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE plan = 'plus' AND plan_until > ?").bind(Date.now()).first();
+    const comp = await env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE comp = 1').first();
     const errs = await env.DB.prepare('SELECT t, msg, src, path FROM errors ORDER BY id DESC LIMIT 25').all();
-    return json({ rows: rows.results, users: users.n, plus: plus.n, errors: errs.results });
+    return json({ rows: rows.results, users: users.n, plus: plus.n, comp: comp.n, errors: errs.results });
   }
   if (path === '/api/logout' && method === 'POST') {
     await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -438,4 +440,31 @@ async function stripeWebhook(request, env) {
     else await setPlan('stripe_customer', o.customer, until);
   }
   return json({ ok: true });
+}
+
+/* ---------- admin (usernames in ADMINS): see every account, grant or remove free Plus, reset, delete ---------- */
+async function admin(path, method, request, env, user) {
+  if (!isAdmin(env, user.username)) return error('Not allowed.', 403);
+  if (path === '/api/admin/users' && method === 'GET') {
+    const r = await env.DB.prepare(`SELECT u.id, u.username, u.created, u.email, u.plan, u.plan_until, u.comp, u.founder, u.stripe_customer,
+      (SELECT MAX(expires) FROM sessions s WHERE s.user_id = u.id) AS last_session, (SELECT t FROM state st WHERE st.user_id = u.id) AS last_save
+      FROM users u ORDER BY u.created DESC LIMIT 500`).all();
+    return json({ users: r.results.map(u => ({ ...u, admin: isAdmin(env, u.username), plus: isAdmin(env, u.username) || !!u.comp || (u.plan === 'plus' && (u.plan_until || 0) > Date.now()) })) });
+  }
+  if (path === '/api/admin/user' && method === 'POST') {
+    const b = await request.json().catch(() => ({}));
+    const t = await env.DB.prepare('SELECT id, username FROM users WHERE username = ?').bind(String(b.username || '')).first();
+    if (!t) return error('No account with that username.', 404);
+    if (b.action === 'comp') await env.DB.prepare('UPDATE users SET comp = 1 WHERE id = ?').bind(t.id).run();
+    else if (b.action === 'uncomp') await env.DB.prepare('UPDATE users SET comp = NULL WHERE id = ?').bind(t.id).run();
+    else if (b.action === 'signout') await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(t.id).run();
+    else if (b.action === 'recovery') return json({ ok: true, recoveryCode: await setRecovery(env, t.id) });
+    else if (b.action === 'delete') {
+      if (isAdmin(env, t.username)) return error('Admin accounts can’t be deleted here.', 400);
+      if (b.confirm !== t.username) return error('Type the username to confirm.', 400);
+      await env.DB.batch([env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(t.id), env.DB.prepare('DELETE FROM state WHERE user_id = ?').bind(t.id), env.DB.prepare('DELETE FROM users WHERE id = ?').bind(t.id)]);
+    } else return error('Unknown action.', 400);
+    return json({ ok: true });
+  }
+  return error('Not found.', 404);
 }

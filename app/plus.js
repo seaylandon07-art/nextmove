@@ -71,10 +71,12 @@ function sheet() {
 }
 A.showPlus = (kind = 'menu', n) => {
   const el = sheet(); sheet.kind = kind; const isPlus = window.NM_PLAN && window.NM_PLAN() === 'plus';
-  $('#plusWhy').textContent = isPlus ? 'You’re on Plus. Thanks for supporting NextMove.' : (WHY[kind] || WHY.menu)(n) || 'Unlimited reviews, puzzles and drills, full opening lines and the Plus look. One small price, cancel anytime.';
+  const comp = window.NM_COMP && window.NM_COMP();
+  $('#plusWhy').textContent = isPlus && comp ? 'You have Plus free, as one of NextMove’s first members. Everything is unlocked, no payment needed.' : isPlus ? 'You’re on Plus. Thanks for supporting NextMove.' : (WHY[kind] || WHY.menu)(n) || 'Unlimited reviews, puzzles and drills, full opening lines and the Plus look. One small price, cancel anytime.';
   $('#plusPer').hidden = isPlus || !billing.yearly;
   $('#plusPrice').textContent = period === 'year' && billing.yearly ? `${billing.yearly} / year` : `${billing.price} / month`;
-  $('#plusSub').textContent = isPlus ? 'Active' : billing.trialDays ? `${billing.trialDays}-day free trial, then ${billing.price} a month` : 'Cancel anytime';
+  $('#plusSub').textContent = isPlus && comp ? 'Free for you, for good' : isPlus ? 'Active' : billing.trialDays ? `${billing.trialDays}-day free trial, then ${billing.price} a month` : 'Cancel anytime';
+  $('#plusGo').hidden = !!(isPlus && comp);
   $('#plusGo').textContent = isPlus ? 'Manage subscription' : !billing.enabled ? 'Coming soon' : (window.NM_USER && window.NM_USER()) ? 'Get Plus' : 'Sign in to get Plus';
   $('#plusGo').disabled = !isPlus && !billing.enabled;
   $('#plusFine').textContent = isPlus ? '' : 'Billed monthly through Stripe. Cancel in one click from Settings and keep Plus until the end of the month you paid for.';
@@ -100,7 +102,7 @@ function render() {
   if (on && !isPlus) { if (PLUS_BGS.includes(u.bg)) { u.bg = 'midnight'; ch = true; } if ((s.depth || 14) > 14) { s.depth = 14; ch = true; } if (s.opDepth === 'full') { s.opDepth = 'std'; ch = true; } }
   if (ch) { K.save(); A.applyUI && A.applyUI(); }
   const rq = $('#revQuota'); if (rq) rq.textContent = !on || isPlus ? 'Every move explained' : `${Math.max(0, A.quotaLeft('reviews'))} of ${FREE.reviews} free full reviews left today`;
-  const row = $('#plusRow'); if (row) { row.hidden = !on; $('#plusRowText').textContent = isPlus ? 'You’re on Plus. Manage or cancel your subscription.' : `${billing.price} a month. Unlimited reviews, puzzles and drills.`; $('#plusRowBtn').textContent = isPlus ? 'Manage' : 'See Plus'; }
+  const row = $('#plusRow'); if (row) { row.hidden = !on; $('#plusRowText').textContent = isPlus && window.NM_COMP && window.NM_COMP() ? 'You have Plus free as an early member.' : isPlus ? 'You’re on Plus. Manage or cancel your subscription.' : `${billing.price} a month. Unlimited reviews, puzzles and drills.`; $('#plusRowBtn').textContent = isPlus && window.NM_COMP && window.NM_COMP() ? 'Details' : isPlus ? 'Manage' : 'See Plus'; }
 }
 A.renderPlus = render;
 // A gentle offer at good moments (a win, a level-up), at most once every 3 days, never in the middle of a game.
