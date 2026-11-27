@@ -56,18 +56,18 @@ const AWARDS = [
 const BANNERS = [
   ['midnight', 'Midnight', 'linear-gradient(135deg,#1a2350,#0a0e1c 70%)', 1],
   ['board', 'Checkered', 'repeating-conic-gradient(#1c2550 0 25%,#121937 0 50%) 0 0/44px 44px', 3],
-  ['gold', 'Gold set', "url('bg/gold.jpg') center/cover", 5],
-  ['marble', 'Marble', "url('bg/marble.jpg') center/cover", 8],
-  ['royal', 'Royal', "url('bg/royal.jpg') center/cover", 12],
-  ['tournament', 'Tournament hall', "url('bg/tournament.jpg') center/cover", 16],
+  ['gold', 'Gold set', "url('bg/banner-gold.jpg') center/cover", 5],
+  ['marble', 'Marble', "url('bg/banner-marble.jpg') center/cover", 8],
+  ['royal', 'Royal', "url('bg/banner-royal.jpg') center/cover", 12],
+  ['tournament', 'Tournament hall', "url('bg/banner-tournament.jpg') center/cover", 16],
   ['neon', 'Neon', "url('bg/neon.svg') center/cover", 20],
-  ['bishop', 'Cathedral', "url('bg/bishop.jpg') center/cover", 25],
-  ['arena', 'Arena', "url('bg/arena.jpg') center/cover", 30],
-  ['sunrise', 'Sunrise', "url('bg/sunrise.jpg') center/cover", 0, 'puz_250'],
-  ['ice', 'Ice', "url('bg/ice.jpg') center/cover", 0, 'streak_30'],
-  ['checkmate', 'Checkmate', "url('bg/checkmate.jpg') center/cover", 0, 'games_100'],
+  ['bishop', 'Cathedral', "url('bg/banner-bishop.jpg') center/cover", 25],
+  ['arena', 'Arena', "url('bg/banner-arena.jpg') center/cover", 30],
+  ['sunrise', 'Sunrise', "url('bg/banner-sunrise.jpg') center/cover", 0, 'puz_250'],
+  ['ice', 'Ice', "url('bg/banner-ice.jpg') center/cover", 0, 'streak_30'],
+  ['checkmate', 'Checkmate', "url('bg/banner-checkmate.jpg') center/cover", 0, 'games_100'],
   ['plusgold', 'Plus gold', 'radial-gradient(120% 140% at 85% 0%,#f6dc9e 0%,#c8923e 28%,#3a2a12 62%,#120d06 100%)', 0, 'plus'],
-  ['plusice', 'Plus ice', "url('bg/ice.jpg') center/cover", 0, 'plus'],
+  ['plusice', 'Plus ice', "linear-gradient(100deg,rgba(241,207,134,.28),rgba(241,207,134,0) 55%),url('bg/banner-ice.jpg') center/cover", 0, 'plus'],
   ['founder', 'Founder', 'linear-gradient(120deg,#0a0e1c 0%,#2a1f0a 40%,#f1cf86 50%,#2a1f0a 60%,#0a0e1c 100%)', 0, 'founder']
 ].map(([id, n, css, lv, aw]) => ({ id, n, css, lv, aw }));
 

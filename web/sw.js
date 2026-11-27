@@ -1,6 +1,6 @@
 /* NextMove service worker: opens instantly and works offline once visited.
    App files: cached, refreshed in the background. Pages: network first. API: never cached. */
-const V = 'nm-v10';
+const V = 'nm-v11';
 const CORE = ['/', '/index.html', '/web.js', '/core.js', '/ui.js', '/chess.js', '/explain.js', '/pieces.js', '/play.js', '/review.js', '/analysis.js', '/train.js', '/progress.js', '/home.js', '/rewards.js', '/plus.js', '/social.js',
   '/sf.js', '/sf.wasm', '/fonts/instrument-sans.woff2', '/book.json', '/courses.json', '/gambits.json', '/endgames.json', '/puzzles.json', '/icons/logo.svg', '/manifest.webmanifest',
   '/sfx/move.mp3', '/sfx/capture.mp3', '/sfx/check.mp3', '/sfx/castle.mp3', '/sfx/promote.mp3', '/sfx/start.mp3', '/sfx/end.mp3', '/sfx/good.mp3', '/sfx/bad.mp3'];
