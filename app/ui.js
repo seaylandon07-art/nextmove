@@ -103,17 +103,22 @@ document.addEventListener('click', e => {
   bd.setDraw(!bd.drawMode); b.classList.toggle('on', bd.drawMode); b.setAttribute('aria-pressed', bd.drawMode);
   if (bd.drawMode) A.toast(matchMedia('(pointer: coarse)').matches ? 'Drag to draw arrows, tap a square to highlight it' : 'Drag to draw arrows, click a square to highlight it');
 });
+/* Accuracy on a chess.com-like scale. We compute accuracy with Lichess's open formula, which bunches
+   club games between 80 and 95; chess.com's (unpublished) CAPS2 spreads most games between 50 and 95.
+   This curve stretches ours to feel the same: sloppy ~60, solid ~80, near-perfect ~95. Shown everywhere. */
+const CC = [[0, 0], [40, 25], [50, 35], [60, 45], [70, 57], [77, 65], [82, 72], [86, 78], [90, 84], [93, 89], [96, 94], [98, 97], [100, 100]];
+A.ccAcc = raw => { if (raw == null || !isFinite(raw)) return raw; for (let i = 1; i < CC.length; i++) if (raw <= CC[i][0]) { const [a0, e0] = CC[i - 1], [a1, e1] = CC[i]; return Math.round((e0 + (raw - a0) / (a1 - a0) * (e1 - e0)) * 10) / 10; } return 100; };
 /* Game rating, chess.com style: how well you played compared with what's expected at your level.
    1) accuracy over your own decisions only (book and forced moves don't count),
    2) turned into a rating with a curve of typical accuracy by rating,
    3) pulled toward your known rating in short games, and adjusted for the opponent's strength. */
 const ACC_R = [[50, 200], [65, 500], [72, 800], [77, 1000], [81, 1300], [85, 1600], [88, 1900], [91, 2200], [94, 2600], [97, 2950], [100, 3200]];
 const lerp = (T, x) => { if (x <= T[0][0]) return T[0][1]; for (let i = 1; i < T.length; i++) if (x <= T[i][0]) { const [a0, e0] = T[i - 1], [a1, e1] = T[i]; return e0 + (x - a0) / (a1 - a0) * (e1 - e0); } return T[T.length - 1][1]; };
-A.gameRating = ({ accs, prior = 1200, opp = null }) => {
+A.gameRating = ({ accs, prior = 1200, opp = null, known = true }) => {
   const a = (accs || []).filter(x => x != null); if (a.length < 6) return null;
   const acc = K.gameAcc(a); const fromMoves = lerp(ACC_R, acc);
-  const w0 = 14, n = a.length; let r = (prior * w0 + fromMoves * n) / (w0 + n);
-  if (opp != null) r += Math.max(-200, Math.min(200, (opp - prior) * .2));
+  const w0 = known ? 14 : 3, n = a.length; let r = (prior * w0 + fromMoves * n) / (w0 + n);
+  if (opp != null && known) r += Math.max(-200, Math.min(200, (opp - prior) * .2));
   return Math.max(100, Math.min(3200, Math.round(r / 10) * 10));
 };
 // rough game rating from accuracy (like the big sites' "game rating"); short games are noisy

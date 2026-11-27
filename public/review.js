@@ -109,7 +109,7 @@ function gr(c) {
   const elo = x => { const v = parseInt(R.headers[x === 'w' ? 'WhiteElo' : 'BlackElo'], 10); return isFinite(v) && v > 0 ? v : null; };
   const mine = S().elo ? S().elo.r : null;
   const prior = elo(c) || (R.me === c && mine) || 1200; const opp = elo(c === 'w' ? 'b' : 'w');
-  return A.gameRating({ accs, prior, opp });
+  return A.gameRating({ accs, prior, opp, known: !!(elo(c) || (R.me === c && mine)) });
 }
 function render() {
   if (!R.fens.length) return;
@@ -128,9 +128,9 @@ function render() {
   const rows = ['brilliant', 'great', 'best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder'];
   const pf = v => v == null ? '–' : Math.round(v);
   $('#sumgrid').innerHTML = `<span class="hd"></span><span class="hd" title="${W}">${W}</span><span class="hd" title="${B}">${B}</span>
-    <span>Accuracy</span><span class="big n">${sm.acc.w ?? '–'}</span><span class="big n">${sm.acc.b ?? '–'}</span>
+    <span>Accuracy</span><span class="big n">${A.ccAcc(sm.acc.w) ?? '–'}</span><span class="big n">${A.ccAcc(sm.acc.b) ?? '–'}</span>
     ${R.done ? `<span>Game rating</span><span class="n">${gr('w') ?? '–'}</span><span class="n">${gr('b') ?? '–'}</span>` : ''}
-    ${R.done ? [['op', 'Opening'], ['mid', 'Middlegame'], ['end', 'Endgame']].filter(([k]) => sm.phase.w[k] != null || sm.phase.b[k] != null).map(([k, n]) => `<span class="mute">${n}</span><span class="n">${pf(sm.phase.w[k])}</span><span class="n">${pf(sm.phase.b[k])}</span>`).join('') : ''}
+    ${R.done ? [['op', 'Opening'], ['mid', 'Middlegame'], ['end', 'Endgame']].filter(([k]) => sm.phase.w[k] != null || sm.phase.b[k] != null).map(([k, n]) => `<span class="mute">${n}</span><span class="n">${pf(A.ccAcc(sm.phase.w[k]))}</span><span class="n">${pf(A.ccAcc(sm.phase.b[k]))}</span>`).join('') : ''}
     ${done ? rows.filter(k => sm.counts.w[k] || sm.counts.b[k]).map(k => `<span>${A.clsChip(k)} ${CLS[k].t}</span><span class="n">${sm.counts.w[k] || 0}</span><span class="n">${sm.counts.b[k] || 0}</span>`).join('') : ''}`;
   // key moments
   if (R.done) {

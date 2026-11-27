@@ -270,7 +270,7 @@ function showRatings() {
   if (P.mode !== 'bot') { el.hidden = true; return; }
   const acc = myAcc(); const gr = myGameRating(); const s = S(); const d = P.eloDelta;
   el.hidden = false;
-  el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '–'}</b><span>${gr == null ? (P.coachAcc.filter(x => x != null).length < 6 ? 'Too short to rate' : 'Calculating…') : `${acc}% accuracy`}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${esc(botObj().n)} (${botObj().r})</span></div>`;
+  el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '–'}</b><span>${gr == null ? (P.coachAcc.filter(x => x != null).length < 6 ? 'Too short to rate' : 'Calculating…') : `${A.ccAcc(acc)}% accuracy`}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${esc(botObj().n)} (${botObj().r})</span></div>`;
 }
 function coachSummary() {
   const log = P.coachLog.filter(Boolean); if (!log.length) return '';
