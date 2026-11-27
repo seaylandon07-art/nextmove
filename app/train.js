@@ -3,7 +3,7 @@
 const { esc, $, CLS } = K; const { S, $$ } = A;
 const T = { mode: null, theme: 'All' };
 const tb = A.board($('#session .bd'), {
-  movable: () => T.lock ? null : T.movable || null,
+  movable: () => T.lock || !T.movable ? null : (T.movable === 'both' || tb.fen.split(' ')[1] === T.movable ? T.movable : null),
   legal: A.legalFor(() => T.fen),
   onMove: (f, t, pr) => trainMove(f, t, pr),
   onSquare: sq => T.onSquare ? T.onSquare(sq) : false

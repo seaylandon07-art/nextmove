@@ -366,7 +366,10 @@ class Board {
     const changed = fen !== this.fen;
     this.fen = fen; this.last = o.last ?? null; this.arrows = o.arrows || []; this.badge = o.badge || null; this.marks = o.marks || {};
     if (changed) { this.uArrows = []; this.uMarks = {}; }
-    this.sel = null; this.dests = []; this.promo.hidden = true; this.render();
+    const keep = !changed && this.sel && !this.drag ? this.sel : null;
+    this.sel = null; this.dests = []; this.promo.hidden = true;
+    if (keep && this.canMove(keep)) { this.sel = keep; this.dests = this.o.legal ? this.o.legal(keep) : []; }
+    this.render();
     if (o.anim && this.last && !this.noAnim) this.animate(this.last);
     else if (this.landNext && this.last && this.last.slice(2, 4) === this.landNext) { const el = this.sqs.querySelector(`[data-sq="${this.landNext}"] .pc`); if (el) el.classList.add('land'); }
     this.landNext = null; this.noAnim = false;
@@ -437,7 +440,7 @@ class Board {
     const p = this.pieces()[sq]; if (!p) return false;
     const mv = this.o.movable ? this.o.movable() : null; if (!mv) return false;
     const turn = this.fen.split(' ')[1];
-    return p[0] === turn && (mv === 'both' || mv === turn);
+    return mv === 'both' ? p[0] === turn : p[0] === mv;   // a colour that isn't on move is a premove
   }
   select(sq) { this.sel = sq; this.dests = this.o.legal ? this.o.legal(sq) : []; this.render(); }
   down(e) {

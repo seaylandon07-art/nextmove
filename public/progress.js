@@ -7,6 +7,7 @@ function render() {
   const revs = s.reviews.filter(r => r.me); const accs = revs.map(r => r.me === 'w' ? r.accW : r.accB).filter(x => x != null);
   const last10 = accs.slice(-10); const avg = last10.length ? Math.round(last10.reduce((a, b) => a + b, 0) / last10.length) : null;
   $('#stats').innerHTML = [
+    ['Play rating', s.elo ? s.elo.r : '–', s.elo ? `${s.elo.n} rated game${s.elo.n === 1 ? '' : 's'} vs bots` : 'finish a game vs a bot'],
     ['Puzzle rating', Math.round(s.puz.r), hist.length ? `${solved} of ${hist.length} first try` : 'no puzzles yet'],
     ['Accuracy', avg ?? '–', last10.length ? `average, last ${last10.length} game${last10.length === 1 ? '' : 's'}` : 'review a game with your side set'],
     ['Drills mastered', `${s.drills.filter(d => d.box >= 4).length}/${s.drills.length}`, `${A.due().length} due now`],

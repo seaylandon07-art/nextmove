@@ -103,6 +103,8 @@ document.addEventListener('click', e => {
   bd.setDraw(!bd.drawMode); b.classList.toggle('on', bd.drawMode); b.setAttribute('aria-pressed', bd.drawMode);
   if (bd.drawMode) A.toast(matchMedia('(pointer: coarse)').matches ? 'Drag to draw arrows, tap a square to highlight it' : 'Drag to draw arrows, click a square to highlight it');
 });
+// rough game rating from accuracy (like the big sites' "game rating"); short games are noisy
+A.accElo = acc => { if (acc == null) return null; const P = [[0, 100], [40, 250], [50, 400], [60, 700], [70, 1000], [80, 1400], [85, 1650], [90, 2000], [95, 2500], [98, 2900], [100, 3100]]; for (let i = 1; i < P.length; i++) if (acc <= P[i][0]) { const [a0, e0] = P[i - 1], [a1, e1] = P[i]; return Math.round((e0 + (acc - a0) / (a1 - a0) * (e1 - e0)) / 10) * 10; } return 3100; };
 A.toast = msg => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 2600); };
 A.clsChip = cls => { const c = CLS[cls]; return c ? `<em class="ic" style="background:${c.c}" title="${c.t}">${c.i}</em>` : ''; };
 A.legalFor = fenGetter => sq => { const c = new Chess(fenGetter()); return c.moves({ square: sq, verbose: true }).map(m => ({ to: m.to })); };

@@ -62,6 +62,7 @@ function renderToday() {
     cards.push(`<button class="tcard${due ? ' hot' : ''}" data-train="drills"><span class="big" data-n="${due}">${due}</span><span><small>Mistake drills</small><b>${due ? 'Due now' : s.drills.length ? 'All caught up' : 'Play a game to fill these'}</b></span></button>`);
     const rv = s.reviews.filter(r => r.me).slice(-1)[0];
     if (rv) { const acc = rv.me === 'w' ? rv.accW : rv.accB; cards.push(`<a class="tcard" href="#review"><span class="big" data-n="${acc ?? 0}">${acc ?? '–'}</span><span><small>Last game accuracy</small><b>vs ${esc(rv.me === 'w' ? rv.black : rv.white)}</b></span></a>`); }
+    if (s.elo) cards.push(`<a class="tcard" href="#play"><span class="big" data-n="${s.elo.r}">${s.elo.r}</span><span><small>Play rating</small><b>${s.elo.n} game${s.elo.n === 1 ? '' : 's'} vs bots</b></span></a>`);
     const h = s.puz.hist; const wk = h.find(x => x.t > Date.now() - 7 * A.DAY); const dr = wk ? Math.round(s.puz.r - wk.r) : 0;
     cards.push(`<button class="tcard" data-train="tactics"><span class="big" data-n="${Math.round(s.puz.r)}">${Math.round(s.puz.r)}</span><span><small>Puzzle rating</small><b>${dr ? `${dr > 0 ? '+' : ''}${dr} this week` : 'Solve to climb'}</b></span></button>`);
   } else {

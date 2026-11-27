@@ -13,14 +13,35 @@ const BOTS = [
   { id: 'sofia', n: 'Sofia', r: 2100, bio: 'Expert — punishes every slip', elo: 2100, depth: 14, book: true },
   { id: 'sf', n: 'Stockfish', r: 3000, bio: 'Full strength. Good luck.', depth: 18, icon: 'i-cpu' }];
 const TCS = { none: null, '1+0': [60, 0], '3+2': [180, 2], '5+3': [300, 3], '10+0': [600, 0] };
-const P = { coach: null, coachLog: [], view: null, seenN: 0, mode: 'bot', bot: 3, color: 'w', tc: 'none', open: 'auto', g: null, me: 'w', over: false, thinking: false, clocks: null, showEval: false, evalLine: null, line: null, online: null };
+const P = { coach: null, coachLog: [], coachAcc: [], view: null, seenN: 0, mode: 'bot', bot: 3, color: 'w', tc: 'none', open: 'auto', g: null, me: 'w', over: false, thinking: false, clocks: null, showEval: false, evalLine: null, line: null, online: null };
 A.P = P;
 const pb = A.board($('#play .bd'), {
-  movable: () => !P.g || P.over || P.thinking || P.view != null ? null : P.mode === 'local' ? 'both' : (P.mode === 'online' && !P.online?.started) ? null : P.me,
-  legal: A.legalFor(() => P.g.fen()),
+  movable: () => !P.g || P.over || P.view != null ? null : P.mode === 'local' ? (P.thinking ? null : 'both') : (P.mode === 'online' && !P.online?.started) ? null : P.me,
+  legal: sq => P.g.turn() === P.me || P.mode === 'local' ? A.legalFor(() => P.g.fen())(sq) : preDests(sq),
   onMove: (f, t, pr) => userMove(f, t, pr)
 });
 function botObj() { return BOTS[P.bot]; }
+/* ---------- premoves: queue your reply while the opponent is thinking ---------- */
+function preDests(sq) {
+  // moves as if it were your turn on the current board; pawns may also aim diagonally at anything
+  const parts = P.g.fen().split(' '); parts[1] = P.me; parts[3] = '-';
+  let c; try { c = new Chess(parts.join(' ')); } catch (e) { return []; }
+  const out = c.moves({ square: sq, verbose: true }).map(m => ({ to: m.to }));
+  const pc = P.g.get(sq);
+  if (pc && pc.type === 'p') { const f = sq.charCodeAt(0), r = +sq[1] + (P.me === 'w' ? 1 : -1); for (const df of [-1, 1]) { const ff = f + df; if (ff >= 97 && ff <= 104 && r >= 1 && r <= 8) { const t = String.fromCharCode(ff) + r; if (!out.some(o => o.to === t)) out.push({ to: t }); } } }
+  return out;
+}
+function tryPremove() {
+  const pr = P.pre; P.pre = null; if (!pr || !P.g || P.over || P.g.turn() !== P.me) { render(); return; }
+  const legal = P.g.moves({ square: pr.from, verbose: true }).some(m => m.to === pr.to);
+  if (!legal) { render(); return; }
+  userMove(pr.from, pr.to, pr.promo);
+}
+pb.host.addEventListener('pointerdown', e => {
+  if (!P.pre) return;
+  const sq = e.target.closest('[data-sq]'); const pc = sq && P.g.get(sq.dataset.sq);
+  if (e.button === 2 || !pc || pc.color !== P.me) { if (!pb.sel) { P.pre = null; render(); } }
+}, true);
 // touching the board while looking at an earlier move jumps back to the live position, like the big sites
 pb.host.addEventListener('pointerdown', () => { if (P.g && P.view != null && !pb.drawMode) { P.view = null; render(); } }, true);
 function renderSetup() {
@@ -64,7 +85,7 @@ function pickLine(botColor) {
 }
 function startGame(opts = {}) {
   saveUnfinished();
-  P.g = new Chess(); P.gid = A.uid(); P.coach = null; P.coachLog = []; P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
+  P.pre = null; P.g = new Chess(); P.gid = A.uid(); P.coach = null; P.coachLog = []; P.coachAcc = []; P.eloDelta = null; P.over = false; P.result = null; P.evalLine = null; P.hint = null; P.thinking = false;
   if (P.mode === 'local') P.me = 'w';
   else if (P.mode === 'online') P.me = opts.color;
   else P.me = opts.color || (P.color === 'r' ? (Math.random() < .5 ? 'w' : 'b') : P.color);
@@ -101,7 +122,9 @@ function render(anim) {
   if (!live) { const c = new Chess(); for (let i = 0; i < v; i++) c.move(h[i].san); fen = c.fen(); }
   const last = h[v - 1];
   const cb = P.coach && P.coach.ply === v && K.CLS[P.coach.cls] ? { sq: P.coach.sq, c: K.CLS[P.coach.cls].c, i: K.CLS[P.coach.cls].i } : null;
-  pb.set(fen, { last: last ? last.from + last.to : null, arrows: live && P.hint ? [P.hint] : [], anim, badge: cb });
+  const marks = live && P.pre ? { [P.pre.from]: 'pre', [P.pre.to]: 'pre' } : {};
+  pb.set(fen, { last: last ? last.from + last.to : null, arrows: live && P.hint ? [P.hint] : [], anim, badge: cb, marks });
+  if (live && P.pre && !P.over && g.turn() === P.me && !P.preT) P.preT = setTimeout(() => { P.preT = null; tryPremove(); }, 60);
   pb.host.classList.toggle('viewing', !live);
   drawPlayers(fen);
   const ml = []; for (let i = 0; i < n; i += 2) ml.push(`<li><span>${i / 2 + 1}</span><b class="mv${v === i + 1 ? ' cur' : ''}" data-ply="${i + 1}">${A.fig(h[i].san, 'w')}</b><b class="mv${v === i + 2 ? ' cur' : ''}" data-ply="${i + 2}">${h[i + 1] ? A.fig(h[i + 1].san, 'b') : ''}</b></li>`);
@@ -156,6 +179,7 @@ function afterMove(color, m) {
 }
 function userMove(f, t, pr) {
   if (!P.g || P.over) return false;
+  if (P.mode !== 'local' && P.g.turn() !== P.me) { P.pre = { from: f, to: t, promo: pr }; render(); return true; }
   const color = P.g.turn(); const fenBefore = P.g.fen();
   const m = P.g.move({ from: f, to: t, promotion: pr || 'q' }); if (!m) return false;
   coachMove(fenBefore, K.uciOf(m), color, P.g.history().length);
@@ -197,8 +221,8 @@ const coachOn = () => A.ui().coach !== false && P.mode === 'bot';
 const GOODC = ['brilliant', 'great', 'best', 'excellent', 'good', 'book', 'forced'];
 function warmCoach() { if (coachOn() && P.g && !P.over && P.g.turn() === P.me) K.analyse(P.g.fen(), 11, 2); }
 async function coachMove(fen, u, color, ply) {
-  if (!coachOn()) return;
-  const gid = P.gid; P.coach = { ply, think: true }; drawCoach();
+  if (P.mode !== 'bot') return;
+  const gid = P.gid; if (coachOn()) { P.coach = { ply, think: true }; drawCoach(); }
   const pre = await K.analyse(fen, 11, 2); const c = new Chess(fen); K.mv(c, u); const post = await K.analyse(c.fen(), 11, 1);
   if (P.gid !== gid) return;
   const e = K.BOOK.get(K.key4(fen)); const inBook = !!(e && e.moves.has(u));
@@ -210,7 +234,9 @@ async function coachMove(fen, u, color, ply) {
   let text = good ? (lines[0] || '') : lines.filter(t => !/^Better was/.test(t)).slice(0, 2).join(' ');
   if (!good && pre.lines[0] && pre.lines[0].move) text += ` Better was ${K.moveName(fen, pre.lines[0].move)}.${P.mode === 'bot' ? ' Use Takeback to try again.' : ''}`;
   P.coach = { ply, cls: cl.cls, sq: u.slice(2, 4), head, text, good };
-  P.coachLog[ply] = cl.cls; drawCoach(); render();
+  P.coachLog[ply] = cl.cls; P.coachAcc[ply] = ['book', 'forced'].includes(cl.cls) ? 100 : K.moveAcc(cl.loss);
+  if (P.over) showRatings();
+  drawCoach(); render();
 }
 function drawCoach() {
   const el = $('#coachBox'); const c = P.coach;
@@ -221,6 +247,23 @@ function drawCoach() {
   el.innerHTML = `${A.clsChip(c.cls)}<span><b>${esc(c.head)}</b>${c.text ? `<p>${esc(c.text)}</p>` : ''}</span>`;
 }
 $('#coachBtn').onclick = () => { const u = A.ui(); u.coach = u.coach === false; K.save(); $('#coachBtn').classList.toggle('on', u.coach !== false); if (u.coach !== false) warmCoach(); drawCoach(); render(); };
+/* ---------- ratings at the end of a game ---------- */
+function myAcc() { const a = P.coachAcc.filter(x => x != null); return a.length >= 4 ? K.gameAcc(a) : null; }
+function applyElo(res) {
+  if (P.mode !== 'bot') return;
+  const s = S(); s.elo = s.elo || { r: 1000, n: 0, hist: [] };
+  const opp = botObj().r; const score = res === '1/2-1/2' ? .5 : (res === '1-0') === (P.me === 'w') ? 1 : 0;
+  const exp = 1 / (1 + Math.pow(10, (opp - s.elo.r) / 400)); const k = s.elo.n < 10 ? 40 : 24;
+  const d = Math.round(k * (score - exp)); s.elo.r += d; s.elo.n++; s.elo.hist.push({ t: Date.now(), r: s.elo.r, opp, score }); s.elo.hist = s.elo.hist.slice(-200);
+  P.eloDelta = d; K.save();
+}
+function showRatings() {
+  const el = $('#overRatings'); if (!el) return;
+  if (P.mode !== 'bot') { el.hidden = true; return; }
+  const acc = myAcc(); const gr = A.accElo(acc); const s = S(); const d = P.eloDelta;
+  el.hidden = false;
+  el.innerHTML = `<div><small>Game rating</small><b>${gr ?? '…'}</b><span>${acc != null ? `${acc}% accuracy` : 'Calculating…'}</span></div><div><small>Your rating</small><b>${s.elo ? s.elo.r : '–'}</b><span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d == null ? '' : d > 0 ? `+${d}` : d < 0 ? `${d}` : '±0'} vs ${esc(botObj().n)} (${botObj().r})</span></div>`;
+}
 function coachSummary() {
   const log = P.coachLog.filter(Boolean); if (!log.length) return '';
   const n = k => log.filter(x => k.includes(x)).length;
@@ -240,11 +283,11 @@ function endGame(res, text, remote) {
   if (P.over) return;
   P.over = true; P.result = text; P.g.header('Result', res);
   const n = names();
-  upsertGame(res); A.queueReview(P.gid);
+  upsertGame(res); A.queueReview(P.gid); applyElo(res);
   K.save(); A.sound('end');
   if (P.mode === 'online' && !remote) pushOnline();
   $('#overBox').hidden = false; $('#overText').textContent = text;
-  const cs = coachSummary(); $('#overCoach').hidden = !cs; $('#overCoach').textContent = cs;
+  const cs = coachSummary(); $('#overCoach').hidden = !cs; $('#overCoach').textContent = cs; showRatings();
   render(); A.refresh();
 }
 // Every game against a bot or a friend is kept as it's played, so its mistakes can be reviewed
@@ -267,10 +310,10 @@ $('#hintBtn').onclick = async () => {
 };
 $('#undoBtn').onclick = () => {
   if (!P.g || P.thinking || P.mode === 'online') return;
-  if (P.over) { P.over = false; $('#overBox').hidden = true; S().games.pop(); }
+  if (P.over) { P.over = false; $('#overBox').hidden = true; const s = S(); s.games = s.games.filter(g => g.id !== P.gid); if (P.eloDelta != null && s.elo) { s.elo.r -= P.eloDelta; s.elo.n--; s.elo.hist.pop(); P.eloDelta = null; } K.save(); }
   P.g.undo(); if (P.mode === 'bot' && P.g.turn() !== P.me && P.g.history().length) P.g.undo();
   if (P.mode === 'local') pb.orient = P.g.turn();
-  P.hint = null; P.coach = null; drawCoach(); render();
+  P.hint = null; P.coach = null; P.pre = null; drawCoach(); render();
   // taking back the bot's very first move (you're Black) hands the move back to the bot
   if (P.mode === 'bot' && !P.over && P.g.turn() !== P.me) botMove();
 };

@@ -277,7 +277,7 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
 .vision{font-size:clamp(56px,10vw,84px);font-weight:600;line-height:1;text-align:center;padding:8px 0;letter-spacing:.02em;color:var(--acc2)}
 /* progress */
 #progress{grid-template-columns:repeat(2,minmax(0,1fr))}
-.stats{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:6px;border-radius:24px;background:linear-gradient(180deg,rgba(150,166,232,.075),rgba(150,166,232,.03));box-shadow:inset 0 1px 0 var(--edge),0 0 0 1px var(--line)}
+.stats{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:4px;padding:6px;border-radius:24px;background:linear-gradient(180deg,rgba(150,166,232,.075),rgba(150,166,232,.03));box-shadow:inset 0 1px 0 var(--edge),0 0 0 1px var(--line)}
 .stat{padding:16px 18px;border-radius:18px}
 .stat:first-child{background:radial-gradient(circle at 20% 0%,rgba(241,207,134,.14),transparent 70%)}
 .stat small{color:var(--mute);display:block;font-size:13px}.stat b{display:block;font-size:46px;font-weight:600;line-height:1.05;margin:4px 0 2px;letter-spacing:-.01em}.stat span{font-size:13px;color:var(--mute)}
@@ -436,6 +436,12 @@ body[data-bg=felt] #bgfx::after{background:radial-gradient(ellipse at 50% 30%,rg
 .bgo:hover i{transform:translateY(-2px)}
 .bgo.on{color:var(--ink)}.bgo.on i{box-shadow:0 0 0 2px var(--night),0 0 0 4px var(--acc)}
 @media(max-width:700px){.bgs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sq.pre::before{content:'';position:absolute;inset:0;background:rgba(255,111,125,.42)}
+.ratings{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ratings>div{padding:12px 14px;border-radius:14px;background:rgba(6,9,22,.35);box-shadow:inset 0 0 0 1px var(--line)}
+.ratings small{display:block;color:var(--mute);font-size:12.5px}.ratings b{display:block;font-size:40px;font-weight:600;font-stretch:78%;line-height:1.05;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ratings>div:first-child b{color:var(--acc2)}
+.ratings span{font-size:12.5px;color:var(--mute)}.ratings span.up{color:var(--ok)}.ratings span.down{color:var(--no)}
 </style>
 </head>
 <body>
@@ -575,7 +581,7 @@ body[data-bg=felt] #bgfx::after{background:radial-gradient(ellipse at 50% 30%,rg
       <div class="coach" id="coachBox" hidden></div>
       <ol class="sheet" id="pmoves"></ol>
       <div class="pnav" id="pnav"><button data-nav="first" aria-label="First move"><svg class="i"><use href="#i-first"/></svg></button><button data-nav="prev" aria-label="Previous move"><svg class="i"><use href="#i-prev"/></svg></button><button data-nav="next" aria-label="Next move"><svg class="i"><use href="#i-next"/></svg></button><button data-nav="last" aria-label="Back to the game"><svg class="i"><use href="#i-last"/></svg></button></div>
-      <div class="sec" id="overBox" hidden><div class="result"><b id="overText">Game over</b><p class="small" id="overCoach" hidden></p><div class="row"><button class="btn" id="reviewThis">Full review with explanations</button><button class="btn sec" id="rematchBtn">Rematch</button><button class="btn sec" id="newBtn2">New game</button></div></div></div>
+      <div class="sec" id="overBox" hidden><div class="result"><b id="overText">Game over</b><div class="ratings" id="overRatings" hidden></div><p class="small" id="overCoach" hidden></p><div class="row"><button class="btn" id="reviewThis">Full review with explanations</button><button class="btn sec" id="rematchBtn">Rematch</button><button class="btn sec" id="newBtn2">New game</button></div></div></div>
       <div class="tools">
         <button class="btn" id="hintBtn"><svg class="i"><use href="#i-bulb"/></svg>Hint</button>
         <button class="btn" id="undoBtn"><svg class="i"><use href="#i-undo"/></svg>Takeback</button>

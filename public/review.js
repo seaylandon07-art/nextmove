@@ -121,6 +121,7 @@ function render() {
   const pf = v => v == null ? '–' : Math.round(v);
   $('#sumgrid').innerHTML = `<span class="hd"></span><span class="hd" title="${W}">${W}</span><span class="hd" title="${B}">${B}</span>
     <span>Accuracy</span><span class="big n">${sm.acc.w ?? '–'}</span><span class="big n">${sm.acc.b ?? '–'}</span>
+    ${R.done ? `<span>Game rating</span><span class="n">${A.accElo(sm.acc.w) ?? '–'}</span><span class="n">${A.accElo(sm.acc.b) ?? '–'}</span>` : ''}
     ${R.done ? [['op', 'Opening'], ['mid', 'Middlegame'], ['end', 'Endgame']].filter(([k]) => sm.phase.w[k] != null || sm.phase.b[k] != null).map(([k, n]) => `<span class="mute">${n}</span><span class="n">${pf(sm.phase.w[k])}</span><span class="n">${pf(sm.phase.b[k])}</span>`).join('') : ''}
     ${done ? rows.filter(k => sm.counts.w[k] || sm.counts.b[k]).map(k => `<span>${A.clsChip(k)} ${CLS[k].t}</span><span class="n">${sm.counts.w[k] || 0}</span><span class="n">${sm.counts.b[k] || 0}</span>`).join('') : ''}`;
   // key moments
