@@ -71,15 +71,17 @@ const BANNERS = [
   ['founder', 'Founder', 'linear-gradient(120deg,#0a0e1c 0%,#2a1f0a 40%,#f1cf86 50%,#2a1f0a 60%,#0a0e1c 100%)', 0, 'founder']
 ].map(([id, n, css, lv, aw]) => ({ id, n, css, lv, aw }));
 
+const MAX_XP = 40950;   // level 40: Grandmaster, the top title
+const isAdmin = () => !!(window.NM_ADMIN && window.NM_ADMIN());
 function ensure(s = S()) {
-  if (s.xp && s.xp.k) return s;
+  if (s.xp && s.xp.k) { if (isAdmin() && s.xp.t < MAX_XP) { s.xp.t = MAX_XP; K.save(); } return s; }
   // first run: credit what you've already done, and grant earned awards quietly
   const k = {}; const t = fin(s).length * 30 + fin(s).filter(won).length * 15 + s.reviews.length * 20 + s.puz.hist.length * 8 + mastered(s) * 12 + Object.keys(s.op || {}).length * 25;
   s.xp = { t, k, bestDays: A.streak() }; s.awards = s.awards || {};
   for (const a of AWARDS) if (!s.awards[a.id] && a.t(s)) s.awards[a.id] = A.today();
   return s;
 }
-const unlocked = (s, b) => b.aw === 'plus' ? !!(A.paywall && A.paywall() && A.plus()) : b.aw ? !!s.awards[b.aw] : lvl(s.xp.t).L >= b.lv;
+const unlocked = (s, b) => isAdmin() ? true : b.aw === 'plus' ? !!(A.paywall && A.paywall() && A.plus()) : b.aw ? !!s.awards[b.aw] : lvl(s.xp.t).L >= b.lv;
 function pop(text, big) {
   let el = $('#xpPop'); if (!el) { el = document.createElement('div'); el.id = 'xpPop'; document.body.appendChild(el); }
   el.textContent = text; el.className = big ? 'big' : ''; void el.offsetWidth; el.classList.add('show');
@@ -111,6 +113,7 @@ A.profile = () => {
   const ban = BANNERS.find(b => b.id === s.banner && unlocked(s, b)) || BANNERS[0];
   const nm = (s.name || '').split(',')[0].trim() || (window.NM_USER && window.NM_USER()) || 'You';
   const got = AWARDS.filter(a => s.awards[a.id]);
+  const owned = BANNERS.filter(b => unlocked(s, b)).map(b => b.id); if (String(owned) !== String(s.bannersOwned || '')) { s.bannersOwned = owned; K.save(); }   // shown on your public profile
   return { s, l, t, next, ban, nm, got };
 };
 function render() {

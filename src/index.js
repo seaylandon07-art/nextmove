@@ -497,7 +497,7 @@ async function profile(name, env) {
   const won = fin.filter(g => g.me && ((g.result === '1-0' && g.me === 'w') || (g.result === '0-1' && g.me === 'b'))).length;
   const draws = fin.filter(g => g.result === '1/2-1/2').length;
   return json({ username: u.username, created: u.created, plus: isAdmin(env, u.username) || !!u.comp || (u.plan === 'plus' && (u.plan_until || 0) > Date.now()), founder: !!u.founder,
-    xp: (st.xp && st.xp.t) || 0, banner: st.banner || 'midnight', awards: Object.keys(st.awards || {}), elo: st.elo ? st.elo.r : null, puzzle: st.puz ? Math.round(st.puz.r) : null,
+    xp: (st.xp && st.xp.t) || 0, banner: st.banner || 'midnight', banners: Array.isArray(st.bannersOwned) ? st.bannersOwned.slice(0, 40) : [], admin: isAdmin(env, u.username), awards: Object.keys(st.awards || {}), elo: st.elo ? st.elo.r : null, puzzle: st.puz ? Math.round(st.puz.r) : null,
     games: fin.length, won, draws, lost: fin.length - won - draws, best: st.best || {},
     recent: fin.slice(-8).reverse().map(g => ({ date: g.date, white: g.white, black: g.black, result: g.result, me: g.me, src: g.src })) }, 200, { 'cache-control': 'public, max-age=60' });
 }
