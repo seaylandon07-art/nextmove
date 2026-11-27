@@ -404,7 +404,7 @@ class Board {
       if (this.sel === s) cl.push('sel');
       if (checkSq === s) cl.push('chk');
       if (this.marks[s]) cl.push(this.marks[s]);
-      if (this.uMarks && this.uMarks[s]) cl.push('um' + this.uMarks[s]);
+      const um = this.uMarks && this.uMarks[s]; if (um) cl.push('umc');
       const d = this.dests.find(t => t.to === s);
       if (d) cl.push(P[s] ? 'cap' : 'dot');
       let inner = '';
@@ -412,7 +412,7 @@ class Board {
       if (y === 7) inner += `<i class="fl">${s[0]}</i>`;
       if (P[s]) inner += `<b class="pc" style="background-image:url(${PIECE[P[s]]})"></b>`;
       if (this.badge && this.badge.sq === s) inner += `<em class="badge" style="background:${this.badge.c}">${this.badge.i}</em>`;
-      h += `<div class="${cl.join(' ')}" data-sq="${s}">${inner}</div>`;
+      h += `<div class="${cl.join(' ')}" data-sq="${s}"${um ? ` style="--um:${typeof um === 'string' ? um : '#ff5a5a'}"` : ''}>${inner}</div>`;
     }
     this.sqs.innerHTML = h; this.drawArrows();
   }
@@ -482,7 +482,7 @@ class Board {
       const sq = this.sqAt(e), a = this.rdown, m = this.rmod || e; this.rdown = null; this.lpOn = false; if (!sq) { this.render(); return; }
       // plain = your colour from Settings, Shift = green, Ctrl = red, Alt = blue
       const k = m.shiftKey ? 2 : m.ctrlKey || m.metaKey ? 1 : m.altKey ? 3 : 0;
-      const AC = [window.K && K.arrowColor ? K.arrowColor() : '#4fcf8f', '#ff5a5a', '#4fcf8f', '#5b9dff'], MK = [1, 1, 2, 3];
+      const AC = [window.K && K.arrowColor ? K.arrowColor() : '#4fcf8f', '#ff5a5a', '#4fcf8f', '#5b9dff'], MK = [window.K && K.markColor ? K.markColor() : '#ff5a5a', '#ff5a5a', '#4fcf8f', '#5b9dff'];
       this.uArrows = this.uArrows || []; this.uMarks = this.uMarks || {};
       if (sq === a) { if (this.uMarks[sq]) delete this.uMarks[sq]; else this.uMarks[sq] = MK[k]; }
       else { const i = this.uArrows.findIndex(x => x.from === a && x.to === sq); if (i >= 0) this.uArrows.splice(i, 1); else this.uArrows.push({ from: a, to: sq, c: AC[k], o: .82 }); }

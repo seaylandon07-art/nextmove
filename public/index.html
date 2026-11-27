@@ -354,6 +354,7 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
 .board.drawing{box-shadow:0 0 0 2px rgba(241,207,134,.75),0 40px 70px -30px rgba(0,0,0,.85),0 0 90px -30px rgba(241,207,134,.3)}
 .board.viewing .sqs{filter:saturate(.75) brightness(.96)}
 .sq.lpress::before{content:'';position:absolute;inset:0;background:rgba(241,207,134,.35);animation:dotIn .25s var(--spring)}
+.sq.umc::before{content:'';position:absolute;inset:0;background:var(--um);opacity:.62}
 .sq.um1::before{content:'';position:absolute;inset:0;background:rgba(255,92,92,.55)}
 .sq.um2::before{content:'';position:absolute;inset:0;background:rgba(111,211,160,.55)}
 .sq.um3::before{content:'';position:absolute;inset:0;background:rgba(110,170,255,.55)}
@@ -362,6 +363,7 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
 .asw{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:7px 14px 7px 8px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line);color:var(--mute);cursor:pointer;font-size:13.5px;font-weight:550;transition:box-shadow .2s,color .2s,transform .15s var(--out)}
 .asw i{width:22px;height:22px;border-radius:50%;background:var(--c);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 0 12px -2px var(--c)}
 .asw:hover{color:var(--ink)}.asw:active{transform:scale(.95)}
+.asw.sq-sw i{border-radius:6px}
 .asw.on{color:var(--ink);box-shadow:inset 0 0 0 2px var(--c)}
 </style>
 </head>
@@ -583,7 +585,8 @@ label.chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink
     <div class="ph"><h2>Settings</h2><button class="btn quiet sp" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
     <section><h3>Board</h3><div class="swatches" id="swatches"></div></section>
     <section><h3>Pieces</h3><div class="psets" id="psets"></div></section>
-    <section><h3>Arrow colour</h3><div class="aswatches" id="arrowSw"></div><p class="small mute" style="margin-top:8px">Hold Shift for green, Ctrl for red or Alt for blue while drawing.</p></section>
+    <section><h3>Arrow colour</h3><div class="aswatches" id="arrowSw"></div></section>
+    <section><h3>Square highlight colour</h3><div class="aswatches" id="markSw"></div><p class="small mute" style="margin-top:8px">On a laptop, hold Shift for green, Ctrl for red or Alt for blue while drawing arrows or highlights.</p></section>
     <section><h3>Move names in explanations</h3><div class="seg" id="notSeg"><button data-n="plain">Plain English — “bishop takes the rook on g5”</button><button data-n="san">Chess notation — “Bxg5”</button></div></section>
     <section class="row" style="gap:16px"><label class="chk"><input type="checkbox" id="sSound"> Move sounds</label><label class="chk"><input type="checkbox" id="sCoords"> Coordinates</label><label class="chk"><input type="checkbox" id="sAnim"> Animate moves</label></section>
     <section><label class="f">Your usernames, comma separated (used to spot your side in imported games)<input type="text" id="nameIn" placeholder="e.g. landon_s, landon"></label></section>
