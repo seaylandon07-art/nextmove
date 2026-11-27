@@ -145,6 +145,10 @@ async function handleApi(request, env, url) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Always use HTTPS on the real site (same as Cloudflare's "Always Use HTTPS" toggle)
+    if (url.protocol === 'http:' && (url.hostname.endsWith('nextmove.gg') || url.hostname.endsWith('.workers.dev'))) {
+      return new Response(null, { status: 301, headers: { Location: `https://${url.host}${url.pathname}${url.search}`, 'X-Redirect': 'https' } });
+    }
     if (url.pathname.startsWith('/api/')) {
       try { return await handleApi(request, env, url); }
       catch (e) { console.error(e); return error('Server error.', 500); }

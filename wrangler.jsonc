@@ -6,7 +6,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": true
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "nextmove-db", "database_id": "ac6d82d5-63d2-45b4-be90-a45eaf1cb76c" }
